@@ -1,8 +1,8 @@
 import NextAuth, { NextAuthConfig } from "next-auth"
 import { Provider } from "next-auth/providers";
-import { PrismaClient } from "@prisma/client";
 import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-auth/adapters";
 import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { VATSIMData } from "./next-auth";
 
 
@@ -16,9 +16,9 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
           cid: user.cid,
           name: user.name || user.personal.name_full,
           email: user.email || user.personal.email,
-          ratingId: user.vatsim.rating.id,
-          ratingShort: user.vatsim.rating.short,
-          ratingLong: user.vatsim.rating.long,
+          ratingId: user.ratingId,
+          ratingShort: user.ratingShort,
+          ratingLong: user.ratingLong,
         }
       });
       console.log('User created:', createdUser);
@@ -61,7 +61,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         select: { user: true }
       })
       console.log('User data found:', userData);
-      return (userData as unknown as AdapterUser) ?? null
+      return userData as unknown as AdapterUser
     },
     getUserByEmail: async email => {
       console.log('Getting user by email:', email);
@@ -71,7 +71,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         }
       });
       console.log('User data found:', userData);
-      return (userData as unknown as AdapterUser) ?? null;
+      return userData as unknown as AdapterUser;
     },
     getAccount: async (provider, providerAccountId) => {
       console.log('Getting account with provider:', provider, 'and providerAccountId:', providerAccountId);
@@ -82,7 +82,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         }
       })
       console.log('Account found:', account);
-      return account as unknown as AdapterAccount | null
+      return account as unknown as AdapterAccount
     },
     linkAccount: async data => {
       console.log('Linking account with data:', data);
@@ -131,9 +131,15 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
     },
     createSession: async data => {
       console.log('Creating session with data:', data);
-      const session = await prisma.session.create({ data })
+      const session = await prisma.session.create({
+        data: {
+          sessionToken: data.sessionToken,
+          userId: data.userId,
+          expires: data.expires,
+        }
+      });
       console.log('Session created:', session);
-      return session
+      return session;
     },
     updateSession: async data => {
       console.log('Updating session with data:', data);
@@ -183,9 +189,12 @@ const providers: Provider[] = [
         id: profile.data.cid,
         cid: profile.data.cid,
         name: profile.data.personal.name_full,
-        user_details: profile.data.vatsim,
+        vatsim: profile.data.vatsim,
         email: profile.data.personal.email,
         emailVerified: true,
+        ratingId: profile.data.vatsim?.rating?.id || null,
+        ratingShort: profile.data.vatsim?.rating?.short || null,
+        ratingLong: profile.data.vatsim?.rating?.long || null
       }
     }
   }
@@ -193,12 +202,28 @@ const providers: Provider[] = [
 
 export const authOptions: NextAuthConfig = {
   providers,
-  adapter: CustomAdapter(prisma as unknown as PrismaClient),
+  adapter: CustomAdapter(prisma),
   secret: process.env.AUTH_SECRET,
   pages: {
     signIn: "/",
-    error: "/error",
   },
+  callbacks: {
+    async jwt({ token, profile, account }) {
+      if (account && profile) {
+        token.data = profile.data;
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (token.data) {
+        session.user = token.data as AdapterUser & VATSIMData
+      }
+      return session
+    },
+  },
+  session: {
+    strategy: "jwt",
+  }
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions);

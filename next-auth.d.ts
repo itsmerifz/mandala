@@ -1,4 +1,4 @@
-import { DefaultSession, DefaultUser, Profile as DefaultProfile } from "next-auth";
+import { DefaultSession, DefaultUser } from "next-auth";
 import { DefaultJWT } from "next-auth/jwt";
 
 export interface VATSIMData {
@@ -33,6 +33,7 @@ export interface VATSIMData {
       name: string?,
     },
   },
+  role: string[],
   oauth: {
     token_valid: "true"
   }
@@ -42,15 +43,18 @@ declare module "next-auth" {
   interface Profile extends DefaultProfile {
     data: VATSIMData
   }
-
   interface Session extends DefaultSession {
     user: VATSIMData
   }
 
   interface User extends Omit<DefaultUser, "id"> {
     id: UserType["id"]
+    cid: string
     name: string
     email: string
+    ratingId: number
+    ratingShort: string
+    ratingLong: string
   }
 }
 
