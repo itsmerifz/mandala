@@ -33,7 +33,7 @@ const RootLayout = ({
             disableTransitionOnChange>
             {children}
             <SwitchTheme />
-            <p className="absolute bottom-2 right-2 dark:text-white *:text-black">Made with luv by 1708238</p>
+            <p className="fixed bottom-2 right-2 dark:text-white *:text-black">Made with luv by 1708238</p>
           </ThemeProvider>
         </SessionProvider>
       </body>

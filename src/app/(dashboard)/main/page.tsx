@@ -11,7 +11,7 @@ const page = async () => {
   const lastATCOnline = await fetch(process.env.NODE_ENV === 'development' ? `https://api.vatsim.net/v2/members/1708238/atc?limit=1` : `https://api.vatsim.net/v2/members/${session?.user?.cid}/atc?limit=1`).then(res => res.json())
 
   return (
-    <div className='p-5'>
+    <>
       <h1 className='text-3xl font-bold'>Welcome Aboard, {session?.user?.personal.name_full}!</h1>
       <div className='flex flex-wrap gap-5 justify-start items-center mt-5'>
         <Card className='w-96'>
@@ -63,7 +63,7 @@ const page = async () => {
         </Card>
 
       </div>
-    </div>
+    </>
   )
 }
 

@@ -8,9 +8,9 @@ interface Props {
 
 const Layout = ({ children }: Props) => {
   return (
-    <SidebarProvider className='flex flex-row h-screen w-screen'>
+    <SidebarProvider className='flex flex-row h-screen w-screen overflow-auto'>
       <SidebarComponent/>
-      <main className='w-full'>
+      <main className='w-full h-full p-5 flex-1'>
         {children}
       </main>
     </SidebarProvider>
