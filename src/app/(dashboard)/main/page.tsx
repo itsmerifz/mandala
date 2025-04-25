@@ -2,13 +2,14 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { auth } from '@root/auth'
+import axios from 'axios'
 export const dynamic = 'force-dynamic'
 
 const page = async () => {
   const session = await auth()
 
-  const onlineHours = await fetch(process.env.NODE_ENV === 'development' ? `https://api.vatsim.net/v2/members/1708238/stats` : `https://api.vatsim.net/v2/members/${session?.user?.cid}/stats`).then(res => res.json());
-  const lastATCOnline = await fetch(process.env.NODE_ENV === 'development' ? `https://api.vatsim.net/v2/members/1708238/atc?limit=1` : `https://api.vatsim.net/v2/members/${session?.user?.cid}/atc?limit=1`).then(res => res.json())
+  const onlineHours = await axios.get(process.env.NODE_ENV === 'development' ? `https://api.vatsim.net/v2/members/1708238/stats` : `https://api.vatsim.net/v2/members/${session?.user?.cid}/stats`).then(res => res.data);
+  const lastATCOnline = await axios.get(process.env.NODE_ENV === 'development' ? `https://api.vatsim.net/v2/members/1708238/atc?limit=1` : `https://api.vatsim.net/v2/members/${session?.user?.cid}/atc?limit=1`).then(res => res.data);
 
   return (
     <>

@@ -1,0 +1,11 @@
+-- CreateTable
+CREATE TABLE `RolePermission` (
+    `id` VARCHAR(191) NOT NULL,
+    `roleId` VARCHAR(191) NOT NULL,
+    `permission` ENUM('MANAGE_WEB', 'MANAGE_ROSTER', 'MANAGE_EVENT', 'MANAGE_TRAINING', 'READ_TRAINING', 'READ_EVENTS', 'READ_ROSTER', 'ADMINISTRATOR') NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `RolePermission` ADD CONSTRAINT `RolePermission_roleId_fkey` FOREIGN KEY (`roleId`) REFERENCES `Role`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

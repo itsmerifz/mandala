@@ -5,12 +5,12 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp, GraduationCap, Calendar, Users, Settings2, Home } from "lucide-react";
 import { auth } from "@root/auth";
 import { redirect } from "next/navigation";
-import { hasAnyRole } from "@/lib/role-utils";
+// import { hasAnyRole } from "@/lib/role-utils";
 import SignOutAction from "@/app/actions/signout";
 
 const SidebarComponent = async () => {
   const session = await auth()
-  const userRoles = session?.user?.role || [];
+  // const userRoles = session?.user?.role || [];
 
   if (!session) {
     redirect('/')

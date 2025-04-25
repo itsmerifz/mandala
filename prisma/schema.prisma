@@ -33,7 +33,27 @@ model Role {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  color       String?
   users       User[]   @relation("UserRole")
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  id          String   @id @default(cuid())
+  role        Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId      String
+  permission  Permission
+}
+
+enum Permission {
+  MANAGE_WEB
+  MANAGE_ROSTER
+  MANAGE_EVENT
+  MANAGE_TRAINING
+  READ_TRAINING
+  READ_EVENTS
+  READ_ROSTER
+  ADMINISTRATOR
 }
 
 model Account {
