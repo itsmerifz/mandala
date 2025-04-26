@@ -55,5 +55,5 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const role = await prisma.role.findMany()
-  if (role) return NextResponse.json({ data: role }, { status: 200 })
+  if (role) return NextResponse.json({ roles: role }, { status: 200 })
 }

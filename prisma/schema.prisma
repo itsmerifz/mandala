@@ -15,34 +15,58 @@ datasource db {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  cid         String        @unique
-  name        String
-  email       String        @unique
-  ratingId    Int
-  ratingShort String
-  ratingLong  String
-  accounts    Account[]
-  sessions    Session[]
-  roles       Role[]       @relation("UserRole")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id               String            @id @default(cuid())
+  cid              String            @unique
+  name             String
+  email            String            @unique
+  ratingId         Int
+  ratingShort      String
+  ratingLong       String
+  accounts         Account[]
+  sessions         Session[]
+  roles            Role[]            @relation("UserRole")
+  userCertificates UserCertificate[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Certificate {
+  id              String            @id @default(cuid())
+  code            String            @unique
+  color           String
+  name            String
+  UserCertificate UserCertificate[]
+}
+
+model UserCertificate {
+  id            String    @id @default(cuid())
+  userId        String
+  certificateId String
+  isOnTraining  Boolean   @default(false)
+  notes         String?
+  issuedAt      DateTime  @default(now())
+  upgradedAt    DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, certificateId])
 }
 
 model Role {
-  id          String   @id @default(cuid())
-  name        String   @unique
+  id          String           @id @default(cuid())
+  name        String           @unique
   description String?
   color       String?
-  users       User[]   @relation("UserRole")
+  users       User[]           @relation("UserRole")
   permissions RolePermission[]
 }
 
 model RolePermission {
-  id          String   @id @default(cuid())
-  role        Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  roleId      String
-  permission  Permission
+  id         String     @id @default(cuid())
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId     String
+  permission Permission
 }
 
 enum Permission {
@@ -57,14 +81,14 @@ enum Permission {
 }
 
 model Account {
-  id                String   @id @default(cuid())
+  id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refreshToken      String?  @db.Text
-  accessToken       String?  @db.Text
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  refreshToken      String? @db.Text
+  accessToken       String? @db.Text
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -78,9 +102,9 @@ model Session {
 }
 
 model Resource {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String
   link        String
-  isStaffOnly Boolean 
+  isStaffOnly Boolean
 }

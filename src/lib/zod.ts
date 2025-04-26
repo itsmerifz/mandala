@@ -23,3 +23,32 @@ export const roleFormSchema = z.object({
   color: z.string().min(1, { message: 'Role Color is required' }),
   permissions: z.array(permissionEnum).min(1, { message: 'At least one permission is required' })
 })
+
+export const certFormSchema = z.object({
+  code: z.string().min(2, { message: 'Certificate Code is required' }),
+  name: z.string().min(1, { message: 'Certificate Name is required' }),
+  color: z.string().min(1, { message: 'Certificate Color is required' })
+})
+
+export const assignRoleSchema = z.object({
+  userId: z.string().min(1),
+  roleIds: z.array(z.string()).min(1, { message: 'At least one role must be selected' })
+})
+
+export const assignCertSchema = z.object({
+  userId: z.string().min(1),
+  certId: z.string().min(1),
+  isOnTraining: z.boolean(),
+  notes: z.string().optional(),
+  issuedAt: z.string().min(1)
+})
+
+export const editUserCertSchema = z.object({
+  isOnTraining: z.boolean(),
+  notes: z.string().optional(),
+  upgradedAt: z.string().optional()
+})
+
+export const editUserRoleSchema = z.object({
+  roleIds: z.array(z.string()).min(1)
+})

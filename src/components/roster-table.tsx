@@ -8,26 +8,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import RatingBadge from './rating-badge'
 import { Button } from './ui/button'
 import { useDebounce } from 'use-debounce'
+import ManageUserPopover from './manage-user-popover'
+import AddRoleDialog from './add-role-dialog'
+import AddCertDialog from './add-cert-dialog'
 
-const rosterColumns: ColumnDef<Roster>[] = [
-  {
-    accessorKey: 'cid',
-    header: 'CID'
-  },
-  {
-    accessorKey: 'name',
-    header: 'Name'
-  },
-  {
-    accessorKey: 'rating',
-    header: 'Rating',
-    cell: ({ getValue }) => <RatingBadge ratingName={getValue() as string} />
-  },
-  {
-    accessorKey: 'certificate',
-    header: 'Certificate'
-  }
-]
 
 const RosterTable = ({ data }: { data: Roster[] }) => {
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -35,12 +19,47 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
   const [pageSize, setPageSize] = React.useState(5)
   const [search, setSearch] = React.useState('')
   const [debouncedSearch] = useDebounce(search, 500)
-
+  const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
+  const [openRoleDialog, setOpenRoleDialog] = React.useState(false)
+  const [openCertDialog, setOpenCertDialog] = React.useState(false)
+  
   const filteredData = React.useMemo(() => {
     return data.filter(user => user.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
   }, [data, debouncedSearch])
-
-
+  
+  const rosterColumns: ColumnDef<Roster>[] = [
+    {
+      accessorKey: 'cid',
+      header: 'CID'
+    },
+    {
+      accessorKey: 'name',
+      header: 'Name'
+    },
+    {
+      accessorKey: 'rating',
+      header: 'Rating',
+      cell: ({ getValue }) => <RatingBadge ratingName={getValue() as string} />
+    },
+    {
+      accessorKey: 'certificate',
+      header: 'Certificate'
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => <ManageUserPopover onAddRole={() => {
+        setSelectedUserId(row.original.cid)
+        setOpenRoleDialog(true)
+      }}
+      onAddCert={() => {
+        setSelectedUserId(row.original.cid)
+        setOpenCertDialog(true)
+      }}
+      />
+    }
+  ]
+  
   const rosterTable = useReactTable({
     data: filteredData,
     columns: rosterColumns,
@@ -104,6 +123,14 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
           <Button className='w-24' variant={'outline'} onClick={() => rosterTable.nextPage()} disabled={!rosterTable.getCanNextPage()}>Next</Button>
         </div>
       </CardContent>
+
+      {openRoleDialog && selectedUserId && (
+        <AddRoleDialog userId={selectedUserId} onClose={() => setOpenRoleDialog(false)}/>
+      )}
+      {openCertDialog && selectedUserId && (
+        <AddCertDialog userId={selectedUserId} onClose={() => setOpenCertDialog(false)}/>
+      )}
+      
     </>
   )
 }
