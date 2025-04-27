@@ -65,7 +65,7 @@ const SidebarComponent = async () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem><Link href={'/roster'} className="w-full">Roster List</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/'} className="w-full">Manage Roster</Link></DropdownMenuItem>
+              <DropdownMenuItem><Link href={'/roster/manage'} className="w-full">Manage Roster</Link></DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>

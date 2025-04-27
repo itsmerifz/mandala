@@ -9,8 +9,9 @@ import RatingBadge from './rating-badge'
 import { Button } from './ui/button'
 import { useDebounce } from 'use-debounce'
 import ManageUserPopover from './manage-user-popover'
-import AddRoleDialog from './add-role-dialog'
-import AddCertDialog from './add-cert-dialog'
+import AddRoleDialog from './assign-role-dialog'
+import AddCertDialog from './assign-cert-dialog'
+import EditUserCertDialog from './edit-user-cert-dialog'
 
 
 const RosterTable = ({ data }: { data: Roster[] }) => {
@@ -22,11 +23,14 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
   const [openRoleDialog, setOpenRoleDialog] = React.useState(false)
   const [openCertDialog, setOpenCertDialog] = React.useState(false)
-  
+  const [openEditCertDialog, setOpenEditCertDialog] = React.useState(false)
+  const [selectedUserCertId, setSelectedUserCertId] = React.useState<string | null>(null)
+  const [selectedCertInitData, setSelectedCertInitData] = React.useState<{ isOnTraining: boolean, notes?: string, upgradedAt?: string }>({ isOnTraining: false })
+
   const filteredData = React.useMemo(() => {
     return data.filter(user => user.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
   }, [data, debouncedSearch])
-  
+
   const rosterColumns: ColumnDef<Roster>[] = [
     {
       accessorKey: 'cid',
@@ -43,23 +47,30 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
     },
     {
       accessorKey: 'certificate',
-      header: 'Certificate'
+      header: 'Certificate',
+      cell: ({ row }) => {
+        <div className='flex items-center gap-2'>
+          <span>{row.original.certificate || '-'}</span>
+          {row.original.certificate && (
+            <Button variant='outline' onClick={() => {
+              setSelectedUserCertId(row.original.cid)
+              setSelectedCertInitData({
+                isOnTraining: false // dummy value
+              })
+              setOpenEditCertDialog(true)
+            }}>Edit</Button>
+          )}
+        </div>
+      }
     },
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => <ManageUserPopover onAddRole={() => {
-        setSelectedUserId(row.original.cid)
-        setOpenRoleDialog(true)
-      }}
-      onAddCert={() => {
-        setSelectedUserId(row.original.cid)
-        setOpenCertDialog(true)
-      }}
+      cell: ({ row }) => <ManageUserPopover userId={row.original.cid}
       />
     }
   ]
-  
+
   const rosterTable = useReactTable({
     data: filteredData,
     columns: rosterColumns,
@@ -125,12 +136,15 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
       </CardContent>
 
       {openRoleDialog && selectedUserId && (
-        <AddRoleDialog userId={selectedUserId} onClose={() => setOpenRoleDialog(false)}/>
+        <AddRoleDialog userId={selectedUserId} onClose={() => setOpenRoleDialog(false)} />
       )}
       {openCertDialog && selectedUserId && (
-        <AddCertDialog userId={selectedUserId} onClose={() => setOpenCertDialog(false)}/>
+        <AddCertDialog userId={selectedUserId} onClose={() => setOpenCertDialog(false)} />
       )}
-      
+      {openEditCertDialog && selectedUserCertId && (
+        <EditUserCertDialog userCertId={selectedUserCertId} initialData={selectedCertInitData} onClose={() => setOpenEditCertDialog(false)} />
+      )}
+
     </>
   )
 }

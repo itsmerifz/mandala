@@ -1,5 +1,3 @@
-'use client'
-
 import { z } from 'zod'
 
 export const permissionValues = [
@@ -37,10 +35,10 @@ export const assignRoleSchema = z.object({
 
 export const assignCertSchema = z.object({
   userId: z.string().min(1),
-  certId: z.string().min(1),
+  certificateId: z.string().min(1),
   isOnTraining: z.boolean(),
   notes: z.string().optional(),
-  issuedAt: z.string().min(1)
+  issuedAt: z.date({ required_error: "A date should be required" })
 })
 
 export const editUserCertSchema = z.object({

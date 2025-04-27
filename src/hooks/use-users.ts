@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
-export const useRoles = () => {
+export const useUsers = () => {
   return useQuery({
-    queryKey: ['roles'],
+    queryKey: ['users'],
     queryFn: async () => {
-      const { data } = await axios.get('/api/roles')
-      return data.roles
+      const { data } = await axios.get('/api/users')
+      return data.users
     },
   })
 }

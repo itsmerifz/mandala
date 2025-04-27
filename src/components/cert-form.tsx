@@ -7,16 +7,17 @@ import { z } from 'zod'
 import { certFormSchema } from '@/lib/zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useCreateCert } from '@/hooks/use-create-cert'
-import { Label } from './ui/label'
 import { Input } from './ui/input'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form'
 
 const CertForm = () => {
-  const { register, handleSubmit, formState: { errors }, reset, } = useForm<z.infer<typeof certFormSchema>>({
+  // const { register, handleSubmit, formState: { errors }, reset, } = useForm<z.infer<typeof certFormSchema>>({
+  const form = useForm<z.infer<typeof certFormSchema>>({
     resolver: zodResolver(certFormSchema),
     defaultValues: {
       code: '',
       name: '',
-      color: ''
+      color: 'slate-500'
     }
   })
 
@@ -25,43 +26,70 @@ const CertForm = () => {
   const onSubmit = async (data: z.infer<typeof certFormSchema>) => {
     mutate(data, {
       onSuccess: () => {
-        reset()
+        form.reset()
       }
     })
   }
   return (
-    <>
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button variant='outline' className='w-full'>Add Certificate</Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogTitle>
-            Add Certificate
-          </DialogTitle>
-          <form onSubmit={handleSubmit(onSubmit)} className='space-y-4'>
-            <div className="space-y-2">
-              <Label htmlFor='code'>Certificate Code</Label>
-              <Input id='code' {...register('code')} className={`border ${errors.code ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 w-full`} />
-              {errors.code && <p className='text-red-500 text-sm'>{errors.code.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor='name'>Certificate Name</Label>
-              <Input id='name' {...register('name')} className={`border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 w-full`} />
-              {errors.name && <p className='text-red-500 text-sm'>{errors.name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor='color'>Color (Use Tailwind color code (e.g. blue-500))</Label>
-              <Input id='color' {...register('color')} className={`border ${errors.color ? 'border-red-500' : 'border-gray-300'} rounded-md p-2 w-full`} />
-              {errors.color && <p className='text-red-500 text-sm'>{errors.color.message}</p>}
-            </div>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant='outline' className='w-full'>Add Certificate</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogTitle>
+          Add Certificate
+        </DialogTitle>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+            <FormField
+              name='code'
+              control={form.control}
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>Certificate Code</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name='name'
+              control={form.control}
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>Certificate Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              name='color'
+              control={form.control}
+              render={({ field }) => (
+                <FormItem className="space-y-2">
+                  <FormLabel>Color (Use Tailwind color code (e.g. blue-500))</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <Button className='w-full' type='submit' variant='outline' disabled={isPending}>
               {isPending ? 'Creating' : 'Create Certificate'}
             </Button>
           </form>
-        </DialogContent>
-      </Dialog>
-    </>
+        </Form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
