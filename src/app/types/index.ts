@@ -34,3 +34,17 @@ export interface RosterCertsData {
   upgradedAt: Date | null;
   id: string;
 }
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+}
+
+export interface Certificate {
+  id: string;
+  code: string;
+  name: string;
+  color: string;
+}

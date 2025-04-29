@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import RatingBadge from './rating-badge'
 import { Button } from './ui/button'
 import { useDebounce } from 'use-debounce'
-import ManageUserPopover from './manage-user-popover'
 import CertificateBadge from './certificate-badge'
+import RosterPopover from './roster-popover'
 
 
 const RosterTable = ({ data }: { data: Roster[] }) => {
@@ -61,9 +61,8 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
     },
     {
       id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => <ManageUserPopover userId={row.original.cid}
-      />
+      header: '',
+      cell: ({ row }) => <RosterPopover cid={row.original.cid}/>
     }
   ]
 
