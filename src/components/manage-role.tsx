@@ -1,16 +1,27 @@
 'use client'
-import { Role } from "@/app/types"
+import { EditRole } from "@/app/types"
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table"
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader } from "./ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
+import React from "react"
+import { useDeleteRole } from "@/hooks/use-delete-role"
+import EditRoleDialog from "./edit-role-dialog"
 
 interface ManageRoleProps {
-  data: Role[]
+  data: EditRole[]
 }
 
 const ManageRoles = ({ data }: ManageRoleProps) => {
-  const roleColumns: ColumnDef<Role>[] = [
+  const [selected, setSelected] = React.useState<EditRole | null>(null)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const { mutate: deleteRole } = useDeleteRole()
+
+  const openEdit = (role: EditRole) => {
+    setSelected(role)
+    setEditOpen(true)
+  }
+  const roleColumns: ColumnDef<EditRole>[] = [
     {
       accessorKey: 'name',
       header: 'Name'
@@ -30,10 +41,10 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <Button variant='outline' id={row.original.id}>
+          <Button variant='outline' onClick={() => openEdit(row.original)}>
             Edit
           </Button>
-          <Button variant='outline'>
+          <Button variant='outline' onClick={() => deleteRole(row.original.id)}>
             Delete
           </Button>
         </div>
@@ -49,8 +60,6 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  // if (isLoading) return <p>Loading data...</p>
-  // if (isError) return <p>Error recieving roles.</p>
   if (!data) return <p>No roles data.</p>
 
   return (
@@ -83,6 +92,9 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
             ))}
           </TableBody>
         </Table>
+        { selected && (
+          <EditRoleDialog key={selected.id} role={selected} open={editOpen} onClose={() => setEditOpen(false)} />
+        )}
       </CardContent>
     </Card>
   )

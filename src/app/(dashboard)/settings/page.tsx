@@ -4,11 +4,19 @@ import ManageRoles from '@/components/manage-role'
 import RoleForm from '@/components/role-form'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { prisma } from '@/lib/prisma'
+import { Permission } from '@/lib/zod'
 import React from 'react'
 
 const getRoles = async () => {
-  const data = await prisma.role.findMany()
-  return data
+  const roles = await prisma.role.findMany({
+    include: {
+      permissions: true
+    }
+  })
+  return roles.map(role => ({
+    ...role,
+    permissions: role.permissions.map(data => data.permission as Permission)
+  }))
 }
 const getCerts = async () => {
   const data = await prisma.certificate.findMany()

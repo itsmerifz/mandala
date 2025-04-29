@@ -1,3 +1,5 @@
+import { Permission } from "@/lib/zod"
+
 export interface Roster {
   cid: string
   name: string
@@ -38,7 +40,7 @@ export interface RosterCertsData {
 export interface Role {
   id: string;
   name: string;
-  description: string | null;
+  description: string | null ;
   color: string | null;
 }
 
@@ -47,4 +49,8 @@ export interface Certificate {
   code: string;
   name: string;
   color: string;
+}
+
+export interface EditRole extends Role {
+  permissions: Permission[]
 }
