@@ -1,6 +1,36 @@
 export interface Roster {
   cid: string
   name: string
-  rating: string,
-  certificate: string | null,
+  rating: string
+  certificates: {
+    id: string
+    code: string
+    color: string
+    isOnTraining: boolean
+    notes?: string
+    issuedAt: Date
+    upgradedAt?: Date
+  }[]
+}
+
+export interface User {
+  name: string;
+  id: string;
+  email: string;
+  cid: string;
+  ratingId: number;
+  ratingShort: string;
+  ratingLong: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RosterCertsData {
+  userId: string;
+  certificateId: string;
+  isOnTraining: boolean;
+  notes: string | null;
+  issuedAt: Date;
+  upgradedAt: Date | null;
+  id: string;
 }

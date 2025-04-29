@@ -1,23 +1,43 @@
+import type { Roster } from '@/app/types'
 import RosterTable from '@/components/roster-table'
 import { Card } from '@/components/ui/card'
 import { prisma } from '@/lib/prisma'
 
-const Roster = async () => {
-  const rosterData = await prisma.user.findMany()
-  const roster = rosterData.map((user) => {
-    return {
-      cid: user.cid,
-      name: user.name,
-      rating: user.ratingShort,
-      certificate: null
+const getCombinedRosterData = async (): Promise<Roster[]> => {
+  const users = await prisma.user.findMany({
+    include: {
+      userCertificates: {
+        include: {
+          certificate: true
+        }
+      }
     }
   })
+
+  return users.map(user => ({
+    cid: user.cid,
+    name: user.name,
+    rating: user.ratingShort,
+    certificates: user.userCertificates.map(cert => ({
+      id: cert.id,
+      code: cert.certificate.code,
+      color: cert.certificate.color,
+      isOnTraining: cert.isOnTraining,
+      notes: cert.notes ?? undefined,
+      issuedAt: cert.issuedAt,
+      upgradedAt: cert.upgradedAt ?? undefined
+    }))
+  }))
+}
+
+const Roster = async () => {
+  const data = await getCombinedRosterData()
 
   return (
     <>
       <h1 className='text-3xl font-bold'>Roster List</h1>
       <Card className='w-auto h-[calc(100vh-200px)] mt-5'>
-        <RosterTable data={roster} />
+        <RosterTable data={data} />
       </Card>
     </>
   )

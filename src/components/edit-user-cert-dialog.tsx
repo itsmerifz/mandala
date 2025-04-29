@@ -26,7 +26,6 @@ interface EditUserCertProps {
 }
 
 const EditUserCertDialog = ({ userCertId, initialData, onClose }: EditUserCertProps) => {
-  // const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
   const form = useForm({
     resolver: zodResolver(editUserCertSchema),
     defaultValues: {

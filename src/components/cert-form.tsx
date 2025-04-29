@@ -11,7 +11,6 @@ import { Input } from './ui/input'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form'
 
 const CertForm = () => {
-  // const { register, handleSubmit, formState: { errors }, reset, } = useForm<z.infer<typeof certFormSchema>>({
   const form = useForm<z.infer<typeof certFormSchema>>({
     resolver: zodResolver(certFormSchema),
     defaultValues: {

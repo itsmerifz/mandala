@@ -4,7 +4,6 @@ import React from 'react'
 import { Button } from '@/components/ui/button'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useAssignCert } from '@/hooks/use-assign-cert'
@@ -17,15 +16,15 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { CalendarDaysIcon } from 'lucide-react'
 import { Calendar } from './ui/calendar'
 import { useUsers } from '@/hooks/use-users'
+import { Textarea } from './ui/textarea'
 
 const AssignCert = () => {
   const { data: certificates = [] } = useCerts()
   const { data: users = [] } = useUsers()
   const { mutate, isPending } = useAssignCert()
 
-  // const { register, handleSubmit, formState: { errors }, control, reset } = useForm<z.infer<typeof assignCertSchema>>({
   const form = useForm<z.infer<typeof assignCertSchema>>({
-    resolver: zodResolver(assignCertSchema),
+    resolver: zodResolver(assignCertSchema) as any,
     defaultValues: {
       certificateId: '',
       isOnTraining: false,
@@ -119,7 +118,7 @@ const AssignCert = () => {
             <FormItem className='space-y-2'>
               <FormLabel htmlFor='notes'>Notes (optional)</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Textarea className='min-h-10' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

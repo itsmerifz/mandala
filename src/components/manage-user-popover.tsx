@@ -1,6 +1,4 @@
 'use client'
-import AddCertDialog from "./assign-cert-dialog"
-import AddRoleDialog from "./assign-role-dialog"
 import { Button } from "./ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 // import { UserPlus, BadgeCheck } from "lucide-react"
@@ -23,8 +21,6 @@ const ManageUserPopover = ({ userId }: ManageUserPopoverProps) => {
         {/* <Button variant='ghost' onClick={onAddCert}>
           <BadgeCheck className="w-4 h-4 mr-2"/> Add Certificate
         </Button> */}
-        <AddRoleDialog userId={userId} />
-        <AddCertDialog userId={userId} />
       </PopoverContent>
     </Popover>
   )

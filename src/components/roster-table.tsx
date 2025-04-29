@@ -9,9 +9,7 @@ import RatingBadge from './rating-badge'
 import { Button } from './ui/button'
 import { useDebounce } from 'use-debounce'
 import ManageUserPopover from './manage-user-popover'
-import AddRoleDialog from './assign-role-dialog'
-import AddCertDialog from './assign-cert-dialog'
-import EditUserCertDialog from './edit-user-cert-dialog'
+import CertificateBadge from './certificate-badge'
 
 
 const RosterTable = ({ data }: { data: Roster[] }) => {
@@ -20,12 +18,6 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
   const [pageSize, setPageSize] = React.useState(5)
   const [search, setSearch] = React.useState('')
   const [debouncedSearch] = useDebounce(search, 500)
-  const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
-  const [openRoleDialog, setOpenRoleDialog] = React.useState(false)
-  const [openCertDialog, setOpenCertDialog] = React.useState(false)
-  const [openEditCertDialog, setOpenEditCertDialog] = React.useState(false)
-  const [selectedUserCertId, setSelectedUserCertId] = React.useState<string | null>(null)
-  const [selectedCertInitData, setSelectedCertInitData] = React.useState<{ isOnTraining: boolean, notes?: string, upgradedAt?: string }>({ isOnTraining: false })
 
   const filteredData = React.useMemo(() => {
     return data.filter(user => user.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
@@ -49,18 +41,22 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
       accessorKey: 'certificate',
       header: 'Certificate',
       cell: ({ row }) => {
-        <div className='flex items-center gap-2'>
-          <span>{row.original.certificate || '-'}</span>
-          {row.original.certificate && (
-            <Button variant='outline' onClick={() => {
-              setSelectedUserCertId(row.original.cid)
-              setSelectedCertInitData({
-                isOnTraining: false // dummy value
-              })
-              setOpenEditCertDialog(true)
-            }}>Edit</Button>
-          )}
-        </div>
+        const certs = row.original.certificates
+        if (!certs) return null
+
+        return (
+          <div className="flex flex-wrap gap-2">
+            {certs.map(cert => (
+              <CertificateBadge
+                key={cert.id}
+                code={cert.code}
+                color={cert.color}
+                isOnTraining={cert.isOnTraining}
+                notes={cert.notes}
+              />
+            ))}
+          </div>
+        )
       }
     },
     {
@@ -135,15 +131,6 @@ const RosterTable = ({ data }: { data: Roster[] }) => {
         </div>
       </CardContent>
 
-      {openRoleDialog && selectedUserId && (
-        <AddRoleDialog userId={selectedUserId} onClose={() => setOpenRoleDialog(false)} />
-      )}
-      {openCertDialog && selectedUserId && (
-        <AddCertDialog userId={selectedUserId} onClose={() => setOpenCertDialog(false)} />
-      )}
-      {openEditCertDialog && selectedUserCertId && (
-        <EditUserCertDialog userCertId={selectedUserCertId} initialData={selectedCertInitData} onClose={() => setOpenEditCertDialog(false)} />
-      )}
 
     </>
   )

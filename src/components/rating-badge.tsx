@@ -21,7 +21,7 @@ const RatingBadge = ({ ratingName }: { ratingName: string}) => {
   const ratingColor = matchedRating?.color || 'bg-gray-300'
 
   return (
-    <Badge className={`text-white ${ratingColor} w-12`}>{ratingName}</Badge>
+    <Badge className={`dark:text-white *:text-black ${ratingColor} w-12`}>{ratingName}</Badge>
   )
 }
 

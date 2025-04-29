@@ -29,16 +29,19 @@ export const certFormSchema = z.object({
 })
 
 export const assignRoleSchema = z.object({
-  userId: z.string().min(1),
+  userId: z.string().min(1, { message: "User should be selected first" }),
   roleIds: z.array(z.string()).min(1, { message: 'At least one role must be selected' })
 })
 
 export const assignCertSchema = z.object({
-  userId: z.string().min(1),
-  certificateId: z.string().min(1),
+  userId: z.string().min(1, { message: "User should be selected first" }),
+  certificateId: z.string().min(1, { message: "Certificate should be selected first" }),
   isOnTraining: z.boolean(),
   notes: z.string().optional(),
-  issuedAt: z.date({ required_error: "A date should be required" })
+  issuedAt: z.preprocess((arg) => {
+    if (typeof arg === 'string' || arg instanceof Date) return new Date(arg)
+    return arg
+  }, z.date({ required_error: "A date should be required" }))
 })
 
 export const editUserCertSchema = z.object({
