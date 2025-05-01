@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { Permission } from "@/lib/zod";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -54,6 +55,15 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const role = await prisma.role.findMany()
-  if (role) return NextResponse.json({ roles: role }, { status: 200 })
+  const roles = await prisma.role.findMany({
+    include: {
+      permissions: true
+    }
+  })
+  if (roles) return NextResponse.json({
+    roles: roles.map(role => ({
+      ...role,
+      permissions: role.permissions.map(permission => permission.permission as Permission)
+    }))
+  }, { status: 200 })
 }

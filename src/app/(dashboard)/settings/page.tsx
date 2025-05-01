@@ -3,29 +3,10 @@ import ManageCerts from '@/components/manage-cert'
 import ManageRoles from '@/components/manage-role'
 import RoleForm from '@/components/role-form'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { prisma } from '@/lib/prisma'
-import { Permission } from '@/lib/zod'
 import React from 'react'
 
-const getRoles = async () => {
-  const roles = await prisma.role.findMany({
-    include: {
-      permissions: true
-    }
-  })
-  return roles.map(role => ({
-    ...role,
-    permissions: role.permissions.map(data => data.permission as Permission)
-  }))
-}
-const getCerts = async () => {
-  const data = await prisma.certificate.findMany()
-  return data
-}
 
 const page = async () => {
-  const roleData = await getRoles()
-  const certData = await getCerts()
   return (
     <>
       <h1 className='text-3xl font-bold'>Site Settings</h1>
@@ -50,8 +31,8 @@ const page = async () => {
             </Card>
           </div>
           <div className='flex-grow overflow-y-auto flex flex-col gap-4 min-h-0 pr-2'>
-            <ManageRoles data={roleData} />
-            <ManageCerts data={certData} />
+            <ManageRoles />
+            <ManageCerts />
           </div>
         </CardContent>
       </Card>

@@ -5,22 +5,26 @@ import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader } from "./ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
 import React from "react"
-import { useDeleteRole } from "@/hooks/use-delete-role"
 import EditRoleDialog from "./edit-role-dialog"
+import DeleteRoleDialog from "./delete-role-dialog"
+import { useRoles } from "@/hooks/use-roles"
 
-interface ManageRoleProps {
-  data: EditRole[]
-}
-
-const ManageRoles = ({ data }: ManageRoleProps) => {
+const ManageRoles = () => {
+  const { data: roles = [], isLoading } = useRoles()
   const [selected, setSelected] = React.useState<EditRole | null>(null)
   const [editOpen, setEditOpen] = React.useState(false)
-  const { mutate: deleteRole } = useDeleteRole()
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
 
   const openEdit = (role: EditRole) => {
     setSelected(role)
     setEditOpen(true)
   }
+
+  const openDelete = (role: EditRole) => {
+    setSelected(role)
+    setDeleteOpen(true)
+  }
+
   const roleColumns: ColumnDef<EditRole>[] = [
     {
       accessorKey: 'name',
@@ -44,7 +48,7 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
           <Button variant='outline' onClick={() => openEdit(row.original)}>
             Edit
           </Button>
-          <Button variant='outline' onClick={() => deleteRole(row.original.id)}>
+          <Button variant='outline' onClick={() => openDelete(row.original)}>
             Delete
           </Button>
         </div>
@@ -53,14 +57,15 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
   ]
 
   const manageRoleTable = useReactTable({
-    data: data,
+    data: roles,
     columns: roleColumns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  if (!data) return <p>No roles data.</p>
+  if (isLoading) return <p>Loading roles...</p>
+  if (!roles) return <p>No roles data.</p>
 
   return (
     <Card>
@@ -92,8 +97,11 @@ const ManageRoles = ({ data }: ManageRoleProps) => {
             ))}
           </TableBody>
         </Table>
-        { selected && (
-          <EditRoleDialog key={selected.id} role={selected} open={editOpen} onClose={() => setEditOpen(false)} />
+        {selected && (
+          <>
+            <EditRoleDialog key={selected.id} role={selected} open={editOpen} onClose={() => setEditOpen(false)} />
+            <DeleteRoleDialog role={selected} open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+          </>
         )}
       </CardContent>
     </Card>

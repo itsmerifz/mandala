@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
-
 import { EditRole } from "@/app/types"
 import { Permission, permissionValues, roleFormSchema } from "@/lib/zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -68,7 +67,7 @@ const EditRoleDialog = ({ role, open, onClose }: EditRoleDialogProps) => {
             )} />
             <FormField name='color' control={form.control} render={({ field }) => (
               <FormItem>
-                <FormLabel>Color</FormLabel>
+                <FormLabel>Color (Use Tailwind color code (e.g. blue-500))</FormLabel>
                 <FormControl><Input {...field} /></FormControl>
                 <FormMessage />
               </FormItem>

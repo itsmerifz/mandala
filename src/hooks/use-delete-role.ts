@@ -8,7 +8,7 @@ export const useDeleteRole = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
-      return await axios.delete(`/api/role/${id}`)
+      return await axios.delete(`/api/roles/${id}`)
     },
     onSuccess: () => {
       toast.success('Role deleted')

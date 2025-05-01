@@ -15,7 +15,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 const RolePermission = permissionEnum.options
 
 const RoleForm = () => {
-  // const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<z.infer<typeof roleFormSchema>>({
   const form = useForm<z.infer<typeof roleFormSchema>>({
     resolver: zodResolver(roleFormSchema),
     defaultValues: {
@@ -36,16 +35,6 @@ const RoleForm = () => {
       }
     })
   }
-
-  // const togglePermission = (value: (typeof RolePermission)[number], checked: boolean | string) => {
-  //   const current = new Set(selectedPermissions)
-  //   if (checked) {
-  //     current.add(value)
-  //   } else {
-  //     current.delete(value)
-  //   }
-  //   form.setValue('permissions', Array.from(current))
-  // }
   return (
     <Dialog>
       <DialogTrigger asChild>

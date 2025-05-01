@@ -4,15 +4,15 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 
-export const useUpdateRole = (id: string) => {
+export const useUpdateCert = (id: string) => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (formData: any) => {
-      return await axios.put(`/api/roles/${id}`, formData)
+      return await axios.put(`/api/cert/${id}`, formData)
     },
     onSuccess: () => {
-      toast.success('Role updated')
-      queryClient.invalidateQueries({ queryKey: ['roles'] })
+      toast.success('Certificate updated')
+      queryClient.invalidateQueries({ queryKey: ['certificates'] })
     },
     onError: (err: any) => toast.error(err?.response?.data?.error || 'Something went wrong')
   })

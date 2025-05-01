@@ -13,7 +13,7 @@ export const useCreateCert = () => {
     },
     onSuccess: () => {
       toast.success('Certificate created successfully!');
-      queryClient.invalidateQueries({ queryKey: ['cert'] });
+      queryClient.invalidateQueries({ queryKey: ['certificates'] });
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.error || 'Something went wrong');

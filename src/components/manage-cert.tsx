@@ -5,12 +5,27 @@ import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSorte
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader } from "./ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
+import { useCerts } from "@/hooks/use-certs"
+import React from "react"
+import DeleteCertDialog from "./delete-cert-dialog"
+import EditCertDialog from "./edit-cert-dialog"
 
-interface ManageCertProps {
-  data: Certificate[]
-}
+const ManageCerts = () => {
+  const { data: certs = [], isLoading } = useCerts()
+  const [selected, setSelected] = React.useState<Certificate | null>(null)
+  const [editOpen, setEditOpen] = React.useState(false)
+  const [deleteOpen, setDeleteOpen] = React.useState(false)
 
-const ManageCerts = ({ data }: ManageCertProps) => {
+  const openEdit = (role: Certificate) => {
+    setSelected(role)
+    setEditOpen(true)
+  }
+
+  const openDelete = (role: Certificate) => {
+    setSelected(role)
+    setDeleteOpen(true)
+  }
+
   const certColumns: ColumnDef<Certificate>[] = [
     {
       accessorKey: 'code',
@@ -29,10 +44,10 @@ const ManageCerts = ({ data }: ManageCertProps) => {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          <Button variant='outline' id={row.original.id}>
+          <Button variant='outline' onClick={() => openEdit(row.original)}>
             Edit
           </Button>
-          <Button variant='outline'>
+          <Button variant='outline' onClick={() => openDelete(row.original)}>
             Delete
           </Button>
         </div>
@@ -41,14 +56,15 @@ const ManageCerts = ({ data }: ManageCertProps) => {
   ]
 
   const manageCertTable = useReactTable({
-    data: data,
+    data: certs,
     columns: certColumns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   })
 
-  if (!data) return <p>No certificate data.</p>
+  if (isLoading) return <p>Loading certificate...</p>
+  if (!certs) return <p>No certificate data.</p>
 
   return (
     <Card>
@@ -80,6 +96,12 @@ const ManageCerts = ({ data }: ManageCertProps) => {
             ))}
           </TableBody>
         </Table>
+        {selected && (
+          <>
+            <EditCertDialog key={selected.id} cert={selected} open={editOpen} onClose={() => setEditOpen(false)} />
+            <DeleteCertDialog cert={selected} open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+          </>
+        )}
       </CardContent>
     </Card>
   )
