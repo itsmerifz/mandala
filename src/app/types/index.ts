@@ -1,8 +1,6 @@
 import { Permission } from "@/lib/zod"
 
-export interface Roster {
-  cid: string
-  name: string
+export interface Roster extends User {
   rating: string
   certificates: {
     id: string

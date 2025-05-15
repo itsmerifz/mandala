@@ -16,35 +16,44 @@ import { format } from "date-fns"
 import { Calendar } from "./ui/calendar"
 
 interface EditUserCertProps {
-  userCertId: string,
-  initialData: {
-    isOnTraining: boolean,
-    notes?: string,
-    upgradedAt?: string
-  },
+  userId: string
+  certId: string
   onClose: () => void
 }
 
-const EditUserCertDialog = ({ userCertId, initialData, onClose }: EditUserCertProps) => {
-  const form = useForm({
+const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
+  const { mutate, isPending, data, isLoading } = useEditUserCert(userId, certId)
+
+  const form = useForm<z.infer<typeof editUserCertSchema>>({
     resolver: zodResolver(editUserCertSchema),
     defaultValues: {
-      isOnTraining: initialData.isOnTraining,
-      notes: initialData.notes || '',
-      upgradedAt: initialData.upgradedAt || ''
+      isOnTraining: data?.isOnTraining ?? false,
+      notes: data?.notes ?? '',
+      upgradedAt: data?.upgradedAt ? data?.upgradedAt.split('T')[0] : '',
     }
   })
 
-  const { mutate, isPending } = useEditUserCert()
 
   const onSubmit = async (data: z.infer<typeof editUserCertSchema>) => {
-    mutate({ userCertId, data }, {
+    mutate({ userId, certId, data }, {
       onSuccess: () => {
         form.reset()
         onClose()
       }
     })
   }
+
+  React.useEffect(() => {
+    if (data) {
+      form.reset({
+        isOnTraining: data.isOnTraining,
+        notes: data.notes ?? '',
+        upgradedAt: data.upgradedAt ? data.upgradedAt.split('T')[0] : ''
+      })
+    }
+  }, [data, form])
+
+  if (isLoading) return null
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -54,17 +63,12 @@ const EditUserCertDialog = ({ userCertId, initialData, onClose }: EditUserCertPr
         </DialogTitle>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              name="isOnTraining"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem className="flex items-center space-x-2">
-                  <FormControl>
-                    <Checkbox id="isOnTraining" checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <FormItem className="flex items-center space-x-2">
+              <FormControl>
+                <Checkbox id="isOnTraining" checked={form.watch('isOnTraining')} onCheckedChange={(checked) => form.setValue('isOnTraining', Boolean(checked))} />
+              </FormControl>
+              <FormLabel htmlFor="isOnTraining">Is On Training?</FormLabel>
+            </FormItem>
 
             <FormField
               name="notes"

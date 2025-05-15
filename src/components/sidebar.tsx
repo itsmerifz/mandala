@@ -76,7 +76,6 @@ const SidebarComponent = async () => {
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem><Link href={'/'} className="w-full">Manage vACC</Link></DropdownMenuItem>
               <DropdownMenuItem><Link href={'/settings'} className="w-full">Site Settings</Link></DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

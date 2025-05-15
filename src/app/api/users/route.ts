@@ -9,6 +9,7 @@ export async function GET() {
         id: true,
         name: true,
         cid: true,
+        ratingShort: true
       },
       orderBy: {
         name: 'asc'

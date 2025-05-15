@@ -15,6 +15,7 @@ const getCombinedRosterData = async (): Promise<Roster[]> => {
   })
 
   return users.map(user => ({
+    id: user.id,
     cid: user.cid,
     name: user.name,
     rating: user.ratingShort,

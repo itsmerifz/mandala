@@ -1,7 +1,8 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Card } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
+import ManageRosterTable from '@/components/manage-roster-table'
 
 const Manage = () => {
 
@@ -17,6 +18,11 @@ const Manage = () => {
             <Link className='w-full' href={'/roster/manage/assign-cert'}>Assign Certificate</Link>
           </Button>
         </div>
+        <CardContent>
+          <div className='mt-3'>
+            <ManageRosterTable />
+          </div>
+        </CardContent>
       </Card>
     </>
   )

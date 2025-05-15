@@ -3,6 +3,7 @@ import ManageCerts from '@/components/manage-cert'
 import ManageRoles from '@/components/manage-role'
 import RoleForm from '@/components/role-form'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import React from 'react'
 
 
@@ -30,10 +31,12 @@ const page = async () => {
               </CardContent>
             </Card>
           </div>
-          <div className='flex-grow overflow-y-auto flex flex-col gap-4 min-h-0 pr-2'>
-            <ManageRoles />
-            <ManageCerts />
-          </div>
+          <ScrollArea className='flex-grow overflow-y-auto flex flex-col gap-4 min-h-0 pr-2'>
+            <div className='pr-2 space-y-4'>
+              <ManageRoles />
+              <ManageCerts />
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
     </>
