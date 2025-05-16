@@ -13,7 +13,7 @@ interface EditUserCertProps {
 export const useEditUserCert = (userId: string, certId: string) => {
   const queryClient = useQueryClient()
 
-  const certQuery = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['user-cert', userId, certId],
     queryFn: async () => {
       const { data } = await axios.get(`/api/user-cert/${userId}/${certId}`)
@@ -21,20 +21,34 @@ export const useEditUserCert = (userId: string, certId: string) => {
     }
   })
 
-  const mutation = useMutation({
+  const { mutate, isPending } = useMutation({
     mutationFn: async ({ data, userId, certId }: EditUserCertProps) => {
       await axios.patch(`/api/user-cert/${userId}/${certId}`, data)
     },
     onSuccess: () => {
       toast.success('Certificate updated')
-      queryClient.invalidateQueries({ queryKey: ['user-certs']})
+      queryClient.invalidateQueries({ queryKey: ['user-certs'] })
     },
     onError: () => toast.error('Failed to update certificate')
   })
 
+  const { mutate: remove, isPending: isRemoving } = useMutation({
+    mutationFn: async () => {
+      await axios.delete(`/api/user-cert/${userId}/${certId}`)
+    },
+    onSuccess: () => {
+      toast.success('Certificate deleted')
+      queryClient.invalidateQueries({ queryKey: ['users']})
+    },
+    onError: () => toast.error('Failed to delete certificate')
+  })
+
   return {
-    ...certQuery,
-    mutate: mutation.mutate,
-    isPending: mutation.isPending
+    data,
+    isLoading,
+    mutate,
+    isPending,
+    remove,
+    isRemoving
   }
 }

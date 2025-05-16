@@ -43,3 +43,22 @@ export async function GET(_: Request, { params }: { params: { id: string, certId
     return NextResponse.json({ error: error?.response?.message || 'Failed to fetch user certificate(s)' }, { status: 500 })
   }
 }
+
+export async function DELETE(_: Request, { params }: { params: { id: string, certId: string } }) {
+  const { id, certId } = params
+
+  try {
+    await prisma.userCertificate.delete({
+      where: {
+        userId_certificateId: {
+          userId: id,
+          certificateId: certId
+        }
+      }
+    })
+
+    return NextResponse.json({ message: 'Certificate deleted successfully' }, { status: 200 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.response?.message || 'Failed to delete user certificate(s)' }, { status: 500 })
+  }
+}

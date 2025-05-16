@@ -12,7 +12,7 @@ import { Button } from "./ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel } from "./ui/form"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { CalendarDaysIcon } from "lucide-react"
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { Calendar } from "./ui/calendar"
 
 interface EditUserCertProps {
@@ -21,10 +21,13 @@ interface EditUserCertProps {
   onClose: () => void
 }
 
-const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
-  const { mutate, isPending, data, isLoading } = useEditUserCert(userId, certId)
+type EditUserCertSchemaInput = z.input<typeof editUserCertSchema>
+type EditUserCertSchemaOutput = z.output<typeof editUserCertSchema>
 
-  const form = useForm<z.infer<typeof editUserCertSchema>>({
+const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
+  const { mutate, isPending, data, isLoading, remove, isRemoving } = useEditUserCert(userId, certId)
+
+  const form = useForm<EditUserCertSchemaInput, unknown, EditUserCertSchemaOutput>({
     resolver: zodResolver(editUserCertSchema),
     defaultValues: {
       isOnTraining: data?.isOnTraining ?? false,
@@ -32,7 +35,6 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
       upgradedAt: data?.upgradedAt ? data?.upgradedAt.split('T')[0] : '',
     }
   })
-
 
   const onSubmit = async (data: z.infer<typeof editUserCertSchema>) => {
     mutate({ userId, certId, data }, {
@@ -93,7 +95,7 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button variant='outline'>
-                          {field.value ? (format(field.value, "PPP")) : <span>Pick a date</span>}
+                          {field.value ? (format(field.value as string, "PPP")) : <span>Pick a date</span>}
                           <CalendarDaysIcon className='ml-auto h-4 w-4 opacity-50' />
                         </Button>
                       </FormControl>
@@ -101,8 +103,11 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
                     <PopoverContent className='w-auto p-0' align='start'>
                       <Calendar
                         mode='single'
-                        selected={field.value ? new Date(field.value) : undefined}
-                        onSelect={field.onChange}
+                        selected={field.value ? parse(field.value as string, 'yyyy-MM-dd', new Date()) : undefined}
+                        onSelect={(date) => {
+                          const formatted = date ? format(date, 'yyyy-MM-dd') : ''
+                          form.setValue('upgradedAt', formatted)
+                        }}
                         disabled={(date) => date < new Date()}
                         initialFocus
                       />
@@ -111,7 +116,10 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
                 </FormItem>
               )}
             />
-            <Button type="submit" variant='outline' disabled={isPending} className="w-full">{isPending ? 'Saving...' : 'Save Changes'}</Button>
+            <div className="flex justify-between gap-4">
+              <Button type="submit" variant='outline' disabled={isPending} className="w-full">{isPending ? 'Saving...' : 'Save Changes'}</Button>
+              <Button type="submit" variant='destructive' disabled={isRemoving} onClick={() => remove(undefined, { onSuccess: onClose })} className="w-full">{isRemoving ? 'Deleting...' : 'Delete'}</Button>
+            </div>
           </form>
         </Form>
       </DialogContent>

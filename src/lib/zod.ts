@@ -47,7 +47,16 @@ export const assignCertSchema = z.object({
 export const editUserCertSchema = z.object({
   isOnTraining: z.boolean(),
   notes: z.string().optional(),
-  upgradedAt: z.string().optional()
+  upgradedAt: z.preprocess((arg) => {
+    if (typeof arg === 'string') {
+      if (arg.trim() === '') return undefined
+      const date = new Date(arg)
+      return !isNaN(date.getTime()) ? date : undefined
+    }
+    if (arg instanceof Date) return !isNaN(arg.getTime()) ? arg : undefined
+
+    return undefined
+  }, z.date({ required_error: "A date should be required", invalid_type_error: "Invalid date format" })).optional()
 })
 
 export const editUserRoleSchema = z.object({
