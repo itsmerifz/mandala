@@ -9,7 +9,13 @@ export async function GET() {
         id: true,
         name: true,
         cid: true,
-        ratingShort: true
+        ratingShort: true,
+        roles: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
       },
       orderBy: {
         name: 'asc'

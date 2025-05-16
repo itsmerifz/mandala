@@ -1,17 +1,20 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
+import { toast } from 'sonner'
 import { editUserRoleSchema } from '@/lib/zod'
 import { z } from 'zod'
 
-interface EditUserRoleProps {
-  userId: string, 
-  data: z.infer<typeof editUserRoleSchema>
-}
+export const useEditUserRole = (userId: string) => {
+  const queryClient = useQueryClient()
 
-export const useEditUserRole = () => {
   return useMutation({
-    mutationFn: async ({ userId, data }: EditUserRoleProps) => {
+    mutationFn: async (data: z.infer<typeof editUserRoleSchema>) => {
       await axios.patch(`/api/user-roles/${userId}`, data)
-    }
+    },
+    onSuccess: () => {
+      toast.success('User roles updated')
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: () => toast.error('Failed to update roles')
   })
 }

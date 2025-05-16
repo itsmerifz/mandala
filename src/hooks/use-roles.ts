@@ -7,6 +7,6 @@ export const useRoles = () => {
     queryFn: async () => {
       const { data } = await axios.get('/api/roles')
       return data.roles
-    },
+    }
   })
 }

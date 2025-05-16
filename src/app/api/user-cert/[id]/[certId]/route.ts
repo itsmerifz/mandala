@@ -48,17 +48,24 @@ export async function DELETE(_: Request, { params }: { params: { id: string, cer
   const { id, certId } = params
 
   try {
+    const existing = await prisma.userCertificate.findFirst({
+      where: {
+        userId: id,
+        id: certId
+      }
+    })
+
+    if (!existing) return NextResponse.json({ message: 'Certificate not found' }, { status: 404 })
+
     await prisma.userCertificate.delete({
       where: {
-        userId_certificateId: {
-          userId: id,
-          certificateId: certId
-        }
+        id: existing.id
       }
     })
 
     return NextResponse.json({ message: 'Certificate deleted successfully' }, { status: 200 })
   } catch (error: any) {
+    console.error(error.message || error)
     return NextResponse.json({ error: error?.response?.message || 'Failed to delete user certificate(s)' }, { status: 500 })
   }
 }

@@ -116,9 +116,9 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
                 </FormItem>
               )}
             />
-            <div className="flex justify-between gap-4">
-              <Button type="submit" variant='outline' disabled={isPending} className="w-full">{isPending ? 'Saving...' : 'Save Changes'}</Button>
-              <Button type="submit" variant='destructive' disabled={isRemoving} onClick={() => remove(undefined, { onSuccess: onClose })} className="w-full">{isRemoving ? 'Deleting...' : 'Delete'}</Button>
+            <div className="flex justify-end gap-4">
+              <Button type="button" variant='destructive' disabled={isRemoving} onClick={() => remove(undefined, { onSuccess: onClose })} className="w-auto">{isRemoving ? 'Deleting...' : 'Delete'}</Button>
+              <Button type="submit" variant='outline' disabled={isPending} className="w-auto">{isPending ? 'Saving...' : 'Save Changes'}</Button>
             </div>
           </form>
         </Form>
