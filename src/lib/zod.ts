@@ -41,7 +41,7 @@ export const assignCertSchema = z.object({
   issuedAt: z.preprocess((arg) => {
     if (typeof arg === 'string' || arg instanceof Date) return new Date(arg)
     return arg
-  }, z.date({ required_error: "A date should be required" }))
+  }, z.date({ required_error: "A date should be required" }).optional())
 })
 
 export const editUserCertSchema = z.object({
@@ -56,9 +56,9 @@ export const editUserCertSchema = z.object({
     if (arg instanceof Date) return !isNaN(arg.getTime()) ? arg : undefined
 
     return undefined
-  }, z.date({ required_error: "A date should be required", invalid_type_error: "Invalid date format" })).optional()
+  }, z.date({ required_error: "A date should be required", invalid_type_error: "Invalid date format" }).optional())
 })
 
 export const editUserRoleSchema = z.object({
-  roleIds: z.array(z.string()).min(1)
+  roleIds: z.array(z.string())
 })

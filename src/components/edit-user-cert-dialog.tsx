@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "./ui/dialog"
 import { Checkbox } from "./ui/checkbox"
 import { Input } from "./ui/input"
 import { Button } from "./ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel } from "./ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form"
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover"
 import { CalendarDaysIcon } from "lucide-react"
 import { format, parse } from "date-fns"
@@ -36,7 +36,7 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
     }
   })
 
-  const onSubmit = async (data: z.infer<typeof editUserCertSchema>) => {
+  const onSubmit = (data: z.infer<typeof editUserCertSchema>) => {
     mutate({ userId, certId, data }, {
       onSuccess: () => {
         form.reset()
@@ -53,6 +53,12 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
         upgradedAt: data.upgradedAt ? data.upgradedAt.split('T')[0] : ''
       })
     }
+
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'isOnTraining' && value?.isOnTraining === false) form.setValue('upgradedAt', format(new Date(), 'yyyy-MM-dd'))
+    })
+
+    return () => subscription.unsubscribe()
   }, [data, form])
 
   if (isLoading) return null
@@ -90,7 +96,7 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
               control={form.control}
               render={({ field }) => (
                 <FormItem className='space-y-2 flex flex-col'>
-                  <FormLabel htmlFor='issuedAt'>Issued Date</FormLabel>
+                  <FormLabel htmlFor='upgradedAt'>Upgraded Date</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -103,16 +109,16 @@ const EditUserCertDialog = ({ userId, certId, onClose }: EditUserCertProps) => {
                     <PopoverContent className='w-auto p-0' align='start'>
                       <Calendar
                         mode='single'
-                        selected={field.value ? parse(field.value as string, 'yyyy-MM-dd', new Date()) : undefined}
+                        selected={field.value && field.value !== '' ? parse(field.value as string, 'yyyy-MM-dd', new Date()) : undefined}
                         onSelect={(date) => {
-                          const formatted = date ? format(date, 'yyyy-MM-dd') : ''
-                          form.setValue('upgradedAt', formatted)
+                          form.setValue('upgradedAt', date ? format(date, 'yyyy-MM-dd') : '');
                         }}
                         disabled={(date) => date < new Date()}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  <FormMessage />
                 </FormItem>
               )}
             />
