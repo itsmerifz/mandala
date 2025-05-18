@@ -13,6 +13,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
+    const existed = await prisma.user.findFirst({
+      where: { id }
+    })
+
+    if (!existed) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
     const { roleIds } = parsed.data
 
     await prisma.user.update({

@@ -47,37 +47,38 @@ const EditUserRoleDialog = ({ userId, currentRoles, onClose }: EditUserRoleDialo
     })
   }
 
-  if (isLoading) return <p>Loading roles...</p>
-
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent>
         <DialogTitle>Edit Role(s)</DialogTitle>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              name="roleIds"
-              control={form.control}
-              render={() => (
-                <FormItem className="space-y-2">
-                  {roles.map((role: any) => (
-                    <div key={role.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={role.id}
-                        checked={selectedRoles.includes(role.id)}
-                        onCheckedChange={checked => toggleRole(role.id, Boolean(checked))}
-                      />
-                      <FormLabel htmlFor={role.id}>{role.name}</FormLabel>
-                    </div>
-                  ))}
-                </FormItem>
-              )}
-            />
-            <Button type="submit" variant="outline" className="w-full" disabled={isPending}>
-              {isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </form>
-        </Form>
+        {isLoading ? <p>Loading roles...</p> : roles.length !== 0 ? (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                name="roleIds"
+                control={form.control}
+                render={() => (
+                  <FormItem className="space-y-2">
+                    {roles.map((role: any) => (
+                      <div key={role.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={role.id}
+                          checked={selectedRoles.includes(role.id)}
+                          onCheckedChange={checked => toggleRole(role.id, Boolean(checked))}
+                        />
+                        <FormLabel htmlFor={role.id}>{role.name}</FormLabel>
+                      </div>
+                    ))}
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" variant="outline" className="w-full" disabled={isPending}>
+                {isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </form>
+          </Form>
+        ) : <p>No roles available.</p>}
+
       </DialogContent>
     </Dialog>
   )

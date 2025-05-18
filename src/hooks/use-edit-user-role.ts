@@ -9,7 +9,7 @@ export const useEditUserRole = (userId: string) => {
 
   return useMutation({
     mutationFn: async (data: z.infer<typeof editUserRoleSchema>) => {
-      await axios.patch(`/api/user-roles/${userId}`, data)
+      await axios.patch(`/api/user-role/${userId}`, data)
     },
     onSuccess: () => {
       toast.success('User roles updated')
