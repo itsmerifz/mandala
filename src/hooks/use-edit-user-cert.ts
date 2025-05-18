@@ -38,7 +38,7 @@ export const useEditUserCert = (userId: string, certId: string) => {
     },
     onSuccess: () => {
       toast.success('Certificate deleted')
-      queryClient.invalidateQueries({ queryKey: ['users']})
+      queryClient.invalidateQueries({ queryKey: ['user-certs']})
     },
     onError: () => toast.error('Failed to delete certificate')
   })

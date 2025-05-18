@@ -55,8 +55,8 @@ const ManageRosterTable = () => {
       id: 'actions', header: 'Actions',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          <Button variant='outline' onClick={() => openRoleDialog(row.original.id, row.original.roles || [])}>Assign Role(s)</Button>
-          <Button variant='outline' onClick={() => openCertDialog(row.original.id)}> Edit Certificate(s)</Button>
+          <Button variant='outline' onClick={() => openRoleDialog(row.original.id, row.original.roles || [])}>Manage Role(s)</Button>
+          <Button variant='outline' onClick={() => openCertDialog(row.original.id)}> Manage Certificate(s)</Button>
         </div>
       )
     }
