@@ -4,7 +4,7 @@ import { Provider } from "next-auth/providers";
 import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-auth/adapters";
 import { prisma } from "@/lib/prisma";
 import { PrismaClient } from "@prisma/client";
-import { AppRoleInSession, ProviderUserProfile } from "./next-auth";
+import { AppRoleInSession, ProviderUserProfile, VATSIMData } from "./next-auth";
 import { Permission as PrismaPermissionEnum } from "@root/prisma/generated";
 
 
@@ -208,16 +208,20 @@ export const authOptions: NextAuthConfig = {
     signIn: "/",
   },
   callbacks: {
-    async jwt({ token, user, account, profile: vatsimProfileFromProvider }) {
-      console.log("JWT Callback: user from adapter:", JSON.stringify(user, null, 2));
-      console.log("JWT Callback: vatsimProfileFromProvider:", JSON.stringify(vatsimProfileFromProvider, null, 2));
-      console.log("JWT Callback: account:", JSON.stringify(account, null, 2));
+    async jwt({ token, user, account, profile: vatsimProfileFromProvider, trigger }) {
+      let shouldReFetchPermissions = false
+      let userForPermissionFetchId: string | undefined = token.userIdDb as string | undefined
 
-      if (user?.id) { // user.id adalah ID dari database Prisma Anda
-        token.userIdDb = user.id; // Simpan ID DB pengguna
-        token.cid = (user as any).cid; // Ambil CID dari objek user DB jika ada
+      if (user?.id) {
+        token.userIdDb = user.id
+        userForPermissionFetchId = user.id
+        token.cid = (user as any).cid
 
-        // Ambil peran & permission aplikasi
+        if (account || trigger === "update" || trigger === "signIn" || trigger === "signUp") {
+          shouldReFetchPermissions = true;
+        }
+
+
         const prismaUserWithDetails = await prisma.user.findUnique({
           where: { id: user.id },
           include: {
@@ -241,38 +245,105 @@ export const authOptions: NextAuthConfig = {
         }
       }
 
-      // Saat login pertama (ada `account` dan `vatsimProfileFromProvider`), simpan data VATSIM mentah ke token
-      if (account && vatsimProfileFromProvider?.data) {
-        token.rawVatsimProfileData = vatsimProfileFromProvider.data;
-        if (!token.cid) token.cid = vatsimProfileFromProvider.data.cid; // Pastikan CID ada di token
+      if (userForPermissionFetchId && !shouldReFetchPermissions) {
+        console.log("JWT: Validating existing token for user DB ID:", userForPermissionFetchId)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userForPermissionFetchId },
+          select: { permissionsLastUpdatedAt: true }
+        })
+
+        const dbTimestamp = dbUser?.permissionsLastUpdatedAt
+        const tokenTimestampString = token.permissionsLastUpdatedAt
+        const tokenTimestamp = tokenTimestampString ? new Date(tokenTimestampString) : null
+
+        if (dbTimestamp && (!tokenTimestamp || dbTimestamp.getTime() > tokenTimestamp.getTime())) {
+          console.log("JWT: Permissions timestamp in DB is newer. Re-fetching permissions.")
+          shouldReFetchPermissions = true
+        } else if (!dbTimestamp && tokenTimestamp) {
+          console.log("JWT: DB timestamp is null, token has one. Re-fetching to sync.")
+          shouldReFetchPermissions = true
+        }
+      } else if (userForPermissionFetchId && !token.appPermissions && !shouldReFetchPermissions) {
+        console.log("JWT: Token exists but appPermissions missing. Forcing re-fetch for user:", userForPermissionFetchId)
+        shouldReFetchPermissions = true
       }
 
+      if (shouldReFetchPermissions && userForPermissionFetchId) {
+        console.log("JWT: Fetching/Re-fetching appRoles, appPermissions, and timestamp for user:", userForPermissionFetchId);
+        const prismaUserWithDetails = await prisma.user.findUnique({
+          where: { id: userForPermissionFetchId },
+          include: { // Pastikan `include` atau `select` sesuai dengan apa yang Anda butuhkan
+            roles: {
+              include: { permissions: true }
+            },
+          }
+        });
+
+        if (prismaUserWithDetails) {
+          token.cid = prismaUserWithDetails.cid; // Ambil CID dari DB jika belum ada di token
+          const appPermissionsSet = new Set<PrismaPermissionEnum>();
+          const appRolesData: AppRoleInSession[] = prismaUserWithDetails.roles.map(role => {
+            role.permissions.forEach(p => appPermissionsSet.add(p.permission));
+            return {
+              id: role.id,
+              name: role.name,
+              color: role.color ?? null, // Pastikan null jika opsional
+              permissions: role.permissions.map(p => p.permission)
+            };
+          });
+          token.appRoles = appRolesData;
+          token.appPermissions = Array.from(appPermissionsSet);
+          token.permissionsLastUpdatedAt = prismaUserWithDetails.permissionsLastUpdatedAt?.toISOString() ?? null;
+        } else {
+          console.warn("JWT: User not found in DB during permission fetch for ID:", userForPermissionFetchId);
+          token.appRoles = [];
+          token.appPermissions = [];
+          token.permissionsLastUpdatedAt = null; // Reset jika pengguna tidak ditemukan
+        }
+      }
+
+
+      if (account && vatsimProfileFromProvider?.data) {
+        token.rawVatsimProfileData = vatsimProfileFromProvider.data as VATSIMData; // Casting
+        if (!token.cid && vatsimProfileFromProvider.data.cid) {
+          token.cid = vatsimProfileFromProvider.data.cid;
+        }
+      }
       console.log("JWT Callback: returning token:", JSON.stringify(token, null, 2));
       return token;
     },
     async session({ session, token }) {
       console.log("Session Callback: received token:", JSON.stringify(token, null, 2));
       if (token.userIdDb && session.user) {
-        session.user.id = token.userIdDb; // ID dari DB Prisma
-        session.user.appRoles = token.appRoles;
-        session.user.appPermissions = token.appPermissions;
+        session.user.id = token.userIdDb
+        session.user.appRoles = token.appRoles
+        session.user.appPermissions = token.appPermissions
+        session.user.cid = token.cid || ""
 
         // Isi detail user dari data VATSIM mentah yang disimpan di token
         if (token.rawVatsimProfileData) {
           const vData = token.rawVatsimProfileData;
-          session.user.cid = vData.cid;
-          session.user.name = vData.personal.name_full; // Pastikan `name` di `session.user` adalah string
-          session.user.email = vData.personal.email; // Pastikan `email` di `session.user` adalah string
+          session.user.name = vData.personal.name_full;
+          session.user.email = vData.personal.email;
           session.user.vatsimPersonal = vData.personal;
           session.user.vatsimDetails = vData.vatsim;
-          session.user.ratingId = vData.vatsim.rating.id; // Harus ada berdasarkan pengecekan di profile callback
+          session.user.ratingId = vData.vatsim.rating.id;
           session.user.ratingShort = vData.vatsim.rating.short;
           session.user.ratingLong = vData.vatsim.rating.long;
-        } else if (token.cid) {
-          // Fallback jika rawVatsimProfileData tidak ada (misalnya token dari sesi lama)
-          // Mungkin perlu mengambil ulang data dari DB jika token sangat minimal
-          session.user.cid = token.cid;
-          // Anda mungkin perlu mengambil `name`, `email`, dll dari DB di sini jika tidak ada di token
+        } else if (token.userIdDb && (!session.user.name || !session.user.email || !session.user.cid)) {
+          console.log("Session: rawVatsimProfileData missing, attempting to fill some user details from DB for user:", token.userIdDb)
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userIdDb },
+            select: { name: true, email: true, cid: true, ratingId: true, ratingShort: true, ratingLong: true }
+          });
+          if (dbUser) {
+            session.user.name = session.user.name || dbUser.name;
+            session.user.email = session.user.email || dbUser.email;
+            session.user.cid = session.user.cid || dbUser.cid;
+            session.user.ratingId = session.user.ratingId ?? dbUser.ratingId;
+            session.user.ratingShort = session.user.ratingShort || dbUser.ratingShort;
+            session.user.ratingLong = session.user.ratingLong || dbUser.ratingLong;
+          }
         }
       }
       console.log("Session Callback: returning session.user:", JSON.stringify(session.user, null, 2));
@@ -281,6 +352,7 @@ export const authOptions: NextAuthConfig = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 60
   }
 }
 

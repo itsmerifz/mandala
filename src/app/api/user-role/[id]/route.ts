@@ -25,9 +25,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       where: { id },
       data: {
         roles: {
-          set: [],
-          connect: roleIds.map(id => ({ id }))
-        }
+          set: roleIds.map(roleId => ({ id: roleId }))
+        },
+        permissionsLastUpdatedAt: new Date(),
       }
     })
 

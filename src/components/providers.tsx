@@ -10,7 +10,7 @@ const queryClient = new QueryClient()
 const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
     <QueryClientProvider client={queryClient}>
-      <SessionProvider>
+      <SessionProvider refetchInterval={5 * 60} refetchOnWindowFocus={true}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

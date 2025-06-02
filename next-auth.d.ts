@@ -70,5 +70,6 @@ declare module "next-auth/jwt" {
     appRoles?: AppRoleInSession[]
     appPermissions?: PrismaPermissionEnum[]
     rawVatsimProfileData?: VATSIMData
+    permissionsLastUpdatedAt?: string | null
   }
 }
