@@ -5,7 +5,7 @@ import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-
 import { prisma } from "@/lib/prisma";
 import { PrismaClient } from "@prisma/client";
 import { AppRoleInSession, ProviderUserProfile, VATSIMData } from "./next-auth";
-import { Permission as PrismaPermissionEnum } from "@root/prisma/generated";
+import { Prisma, Permission as PrismaPermissionEnum } from "@root/prisma/generated";
 
 
 const CustomAdapter = (prisma: PrismaClient): Adapter => {
@@ -28,7 +28,6 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         cid: profile.cid,
         name: profile.name,
         email: profile.email,
-        emailVerified: profile.emailVerified, // Biarkan null jika tidak ada
         ratingId: profile.ratingId,
         ratingShort: profile.ratingShort,
         ratingLong: profile.ratingLong,
@@ -107,9 +106,25 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
       console.log('Account found:', account);
       return account as unknown as AdapterAccount
     },
-    linkAccount: async data => {
+    linkAccount: async (data: AdapterAccount) => {
       console.log('Linking account with data:', JSON.stringify(data, null, 2));
-      const createdAccount = await prisma.account.create({ data: data });
+      const dataForPrisma: Prisma.AccountCreateInput = { // Gunakan tipe Prisma untuk kejelasan
+        user: { connect: { id: data.userId as string } },
+        type: data.type,
+        provider: data.provider,
+        providerAccountId: data.providerAccountId,
+        accessToken: data.access_token as string ?? data.accessToken,
+        refreshToken: data.refresh_token as string ?? data.refreshToken
+      };
+
+      Object.keys(dataForPrisma).forEach(key => {
+        if (dataForPrisma[key as keyof Prisma.AccountCreateInput] === undefined) {
+          delete dataForPrisma[key as keyof Prisma.AccountCreateInput];
+        }
+      });
+      const createdAccount = await prisma.account.create({ // Menggunakan prismaClient dari parameter CustomAdapter
+        data: dataForPrisma,
+      });
       console.log('Account linked:', createdAccount);
       return createdAccount as unknown as AdapterAccount
     },

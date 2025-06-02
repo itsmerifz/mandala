@@ -76,7 +76,7 @@ const SidebarComponent = async () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem><Link href={'/events'} className="w-full">Event List</Link></DropdownMenuItem>
-              { userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_EVENT) &&
+              {userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_EVENT) &&
                 <DropdownMenuItem><Link href={'/'} className="w-full">Manage Event</Link></DropdownMenuItem>
               }
             </DropdownMenuContent>
@@ -90,20 +90,26 @@ const SidebarComponent = async () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem><Link href={'/roster'} className="w-full">Roster List</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/roster/manage'} className="w-full">Manage Roster</Link></DropdownMenuItem>
+              {
+                userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_ROSTER) &&
+                <DropdownMenuItem><Link href={'/roster/manage'} className="w-full">Manage Roster</Link></DropdownMenuItem>
+              }
             </DropdownMenuContent>
           </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton className="p-5">
-                <Settings2 className="text-xl" /> Settings
-                <ChevronDown className="ml-auto" />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem><Link href={'/settings'} className="w-full">Site Settings</Link></DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {
+            userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_WEB) &&
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton className="p-5">
+                  <Settings2 className="text-xl" /> Settings
+                  <ChevronDown className="ml-auto" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem><Link href={'/settings'} className="w-full">Site Settings</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
