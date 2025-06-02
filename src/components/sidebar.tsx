@@ -5,16 +5,37 @@ import Link from "next/link";
 import { ChevronDown, ChevronUp, GraduationCap, Calendar, Users, Settings2, Home } from "lucide-react";
 import { auth } from "@root/auth";
 import { redirect } from "next/navigation";
-// import { hasAnyRole } from "@/lib/role-utils";
 import SignOutAction from "@/app/actions/signout";
+import { Permission as PrismaPermissionEnum } from "@root/prisma/generated";
+
+const userHasPermissionOrIsAdmin = (
+  userPermissions: PrismaPermissionEnum[] | undefined,
+  required: PrismaPermissionEnum | PrismaPermissionEnum[]
+): boolean => {
+  if (!userPermissions || userPermissions.length === 0) return false;
+
+  // Jika pengguna adalah ADMINISTRATOR, selalu berikan akses
+  if (userPermissions.includes(PrismaPermissionEnum.ADMINISTRATOR)) {
+    return true;
+  }
+
+  // Jika bukan admin, cek permission spesifik
+  if (Array.isArray(required)) {
+    return required.some(p => userPermissions.includes(p));
+  }
+  return userPermissions.includes(required);
+};
 
 const SidebarComponent = async () => {
   const session = await auth()
-  // const userRoles = session?.user?.role || [];
 
-  if (!session) {
-    redirect('/')
+  if (!session?.user) {
+    // Jika tidak ada sesi pengguna (seharusnya sudah ditangani middleware, tapi sebagai pengaman tambahan)
+    redirect('/');
+    return null; // Hindari rendering lebih lanjut jika redirect
   }
+
+  const appPermissions = session.user.appPermissions || [];
 
   return (
     <Sidebar>
@@ -41,7 +62,9 @@ const SidebarComponent = async () => {
               <DropdownMenuItem><Link href={'/training'} className="w-full">Request Training</Link></DropdownMenuItem>
               <DropdownMenuItem><Link href={'/'} className="w-full">Training Plan</Link></DropdownMenuItem>
               <DropdownMenuItem><Link href={'/'} className="w-full">Check Training Status</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/'} className="w-full">Manage Training</Link></DropdownMenuItem>
+              {userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_TRAINING) && (
+                <DropdownMenuItem><Link href={'/training/manage'} className="w-full">Manage Training</Link></DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -53,7 +76,9 @@ const SidebarComponent = async () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               <DropdownMenuItem><Link href={'/events'} className="w-full">Event List</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/'} className="w-full">Manage Event</Link></DropdownMenuItem>
+              { userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_EVENT) &&
+                <DropdownMenuItem><Link href={'/'} className="w-full">Manage Event</Link></DropdownMenuItem>
+              }
             </DropdownMenuContent>
           </DropdownMenu>
           <DropdownMenu>
@@ -86,10 +111,10 @@ const SidebarComponent = async () => {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="p-5">
               <Avatar className="w-6 h-6">
-                <AvatarImage src={`https://www.gradvatar.com/${session.user?.personal.name_full}`} alt={`${session.user?.personal.name_full} Avatar`} />
-                <AvatarFallback>{`${session.user?.personal.name_first.split('')[0]}${session.user?.personal.name_last.split('')[0]}`}</AvatarFallback>
+                <AvatarImage src={`https://www.gradvatar.com/${session.user.name}`} alt={`${session.user.name} Avatar`} />
+                <AvatarFallback>{`${session.user?.vatsimPersonal?.name_first.split('')[0]}${session.user?.vatsimPersonal?.name_last.split('')[0]}`}</AvatarFallback>
               </Avatar>
-              {session?.user.personal.name_full}
+              {session?.user.name}
               <ChevronUp className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>

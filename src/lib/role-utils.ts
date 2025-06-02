@@ -1,10 +1,17 @@
 import { Session } from "next-auth";
 
-export const hasRole = (session: Session | null, role: string): boolean => {
-  return session?.user?.role?.includes(role) ?? false;
-}
+export const hasAppRole = (session: Session | null, roleName: string): boolean => {
+  if (!session?.user?.appRoles) {
+    return false;
+  }
+  return session.user.appRoles.some(appRole => appRole.name === roleName);
+};
 
-export const hasAnyRole = (session: Session | null, roles: string[]): boolean => {
-  if (!session || !session.user || !session.user?.role) return false;
-  return roles.some(role => session.user.role.includes(role));
-}
+export const hasAnyAppRole = (session: Session | null, roleNames: string[]): boolean => {
+  if (!session?.user?.appRoles) {
+    return false;
+  }
+  return roleNames.some(roleName =>
+    session.user.appRoles!.some(appRole => appRole.name === roleName)
+  );
+};
