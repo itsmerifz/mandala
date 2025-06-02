@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
         const hasRequiredPermission = requiredPermissions.some(rp => userPermissions.includes(rp));
 
         if (!hasRequiredPermission) {
-          console.log(`User tidak diizinkan mengakses ${pathname}. Permission dibutuhkan: ${requiredPermissions.join(', ')}. Permission dimiliki: ${userPermissions.join(', ')}`);
+          console.log(`User aren't allowed to access ${pathname}. Need permission: ${requiredPermissions.join(', ')}. You have permission: ${userPermissions.join(', ')}`);
           return NextResponse.redirect(new URL("/main?error=unauthorized", request.url));
         }
         return NextResponse.next();
