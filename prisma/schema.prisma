@@ -29,6 +29,11 @@ model User {
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt
   permissionsLastUpdatedAt DateTime?
+
+  trainingsAsStudent      Training[]          @relation("StudentTrainings")
+  trainingsAsMentor       Training[]          @relation("MentorTrainings")
+  trainingSessionAsMentor TrainingSession[]   @relation("MentorSessions")
+  assignedTrainings       Training[]          @relation("StaffTrainingAssignments")
 }
 
 model Certificate {
@@ -81,6 +86,12 @@ enum Permission {
   ADMINISTRATOR
 }
 
+enum TrainingType {
+  RATING_PROGRESSION
+  SOLO_ENDORSEMENT
+  RECURRENT_TRAINING
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -108,4 +119,54 @@ model Resource {
   description String
   link        String
   isStaffOnly Boolean
+}
+
+model Training {
+  id            String        @id @default(cuid())
+  type          TrainingType 
+  student       User          @relation("StudentTrainings", fields: [studentId], references: [id], onDelete: Cascade)
+  studentId     String
+  mentor        User?         @relation("MentorTrainings", fields: [mentorId], references: [id], onDelete: SetNull)
+  mentorId      String?
+  assignedBy    User?         @relation("StaffTrainingAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById  String?
+  status        String
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  ratingDetail  TrainingRatingDetail?
+  soloDetail    TrainingSoloDetail?
+  sessions      TrainingSession[]
+
+  @@index([studentId])
+  @@index([mentorId])
+}
+
+model TrainingRatingDetail {
+  id             String      @id @default(cuid())
+  training       Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId     String      @unique
+  targetRating   String 
+}
+
+model TrainingSoloDetail {
+  id                String      @id @default(cuid())
+  training          Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId        String      @unique
+  position          String
+  validUntil        DateTime?
+}
+
+model TrainingSession {
+  id            String      @id @default(cuid())
+  training      Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId    String
+  mentor        User        @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorId      String
+  position      String
+  notes         String?     @db.Text
+  createdAt     DateTime    @default(now())
+
+  @@index([trainingId])
 }

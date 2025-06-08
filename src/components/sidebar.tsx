@@ -59,9 +59,7 @@ const SidebarComponent = async () => {
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem><Link href={'/training'} className="w-full">Request Training</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/'} className="w-full">Training Plan</Link></DropdownMenuItem>
-              <DropdownMenuItem><Link href={'/'} className="w-full">Check Training Status</Link></DropdownMenuItem>
+              <DropdownMenuItem><Link href={'/training'} className="w-full">Training Center</Link></DropdownMenuItem>
               {userHasPermissionOrIsAdmin(appPermissions, PrismaPermissionEnum.MANAGE_TRAINING) && (
                 <DropdownMenuItem><Link href={'/training/manage'} className="w-full">Manage Training</Link></DropdownMenuItem>
               )}

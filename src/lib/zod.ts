@@ -1,3 +1,4 @@
+import { TrainingType } from '@root/prisma/generated'
 import { z } from 'zod'
 
 export const permissionValues = [
@@ -61,4 +62,18 @@ export const editUserCertSchema = z.object({
 
 export const editUserRoleSchema = z.object({
   roleIds: z.array(z.string())
+})
+
+export const createTrainingSchema = z.object({
+  trainingType: z.nativeEnum(TrainingType, {
+    errorMap: () => ({ message: "Training type should be selected" })
+  }),
+  notes: z.string().optional(),
+  targetRating: z.string().optional(), // for RATING PROGRESS
+  soloPosition: z.string().optional() // for SOLO ENDORSEMENT
+})
+
+export const assignMentorSchema = z.object({
+  trainingId: z.string().cuid(),
+  mentorId: z.string().cuid()
 })

@@ -108,7 +108,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
     },
     linkAccount: async (data: AdapterAccount) => {
       console.log('Linking account with data:', JSON.stringify(data, null, 2));
-      const dataForPrisma: Prisma.AccountCreateInput = { // Gunakan tipe Prisma untuk kejelasan
+      const dataForPrisma: Prisma.AccountCreateInput = { 
         user: { connect: { id: data.userId as string } },
         type: data.type,
         provider: data.provider,
@@ -122,7 +122,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
           delete dataForPrisma[key as keyof Prisma.AccountCreateInput];
         }
       });
-      const createdAccount = await prisma.account.create({ // Menggunakan prismaClient dari parameter CustomAdapter
+      const createdAccount = await prisma.account.create({
         data: dataForPrisma,
       });
       console.log('Account linked:', createdAccount);
