@@ -1,6 +1,5 @@
 import RequestTrainingForm from '@/components/request-training-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@root/auth'
@@ -83,17 +82,20 @@ const page = async () => {
         </Card>
 
         <Card>
-          <CardHeader className='flex justify-between'>
-            <div className='space-y-1'>
-              <CardTitle>Training Plan</CardTitle>
-              <CardDescription>Your any training plan and strategies.</CardDescription>
-            </div>
-            <Button variant='outline' size='sm'>Add Training Plan</Button>
+          <CardHeader>
+            <CardTitle>Training Plan</CardTitle>
+            <CardDescription>Your any training plan and strategies.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Coming soon. It will showing syllabus and training slides you will learn.
-            </p>
+            {activeTraining && activeTraining.trainingPlan ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap font-sans text-sm">{activeTraining.trainingPlan}</pre>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {activeTraining ? "Mentor has not added a training plan" : "No active training"}
+              </p>
+            )}
           </CardContent>
         </Card>
 

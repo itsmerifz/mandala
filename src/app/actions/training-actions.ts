@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { assignMentorSchema, createTrainingSchema } from "@/lib/zod"
+import { assignMentorSchema, createTrainingSchema, updatePlanSchema } from "@/lib/zod"
 import { auth } from "@root/auth"
 import { Permission } from "@root/prisma/generated"
 import { revalidatePath } from "next/cache"
@@ -18,9 +18,6 @@ const createTrainingAction = async (formData: FormData) => {
   }
 
   const parsed = createTrainingSchema.safeParse(formValues)
-
-  console.log(formValues);
-  
 
   if (!parsed.success) return { success: false, error: "Invalid Data" }
 
@@ -112,4 +109,43 @@ const assignMentorAction = async (formData: FormData) => {
   }
 }
 
-export { createTrainingAction, assignMentorAction } 
+const updateTrainingPlanAction = async (formData: FormData) => {
+  const session = await auth()
+  const mentorId = session?.user?.id
+
+  if (!mentorId) return { success: false, error: "Login Required" }
+
+  const parsed = updatePlanSchema.safeParse({
+    trainingId: formData.get('trainingId'),
+    planContent: formData.get('planContent')
+  })
+
+  if (!parsed.success) return { success: false, error: "Invalid Data" }
+
+  const { trainingId, planContent } = parsed.data
+
+  try {
+    const trainingRecord = await prisma.training.findUnique({
+      where: { id: trainingId },
+      select: { mentorId: true }
+    })
+
+    if (!trainingRecord || trainingRecord.mentorId !== mentorId) {
+      const isStaff = session.user.appPermissions?.includes(Permission.MANAGE_TRAINING)
+      if (!isStaff) return { success: false, error: "You aren't student mentor" }
+    }
+
+    await prisma.training.update({
+      where: { id: trainingId },
+      data: { trainingPlan: planContent }
+    })
+
+    revalidatePath('/training')
+    return { success: true, message: "Training Plan was updated" }
+  } catch (error) {
+    console.error('Error:', error)
+    return { success: false, error: "Error when update training plan" }
+  }
+}
+
+export { createTrainingAction, assignMentorAction, updateTrainingPlanAction } 

@@ -77,3 +77,8 @@ export const assignMentorSchema = z.object({
   trainingId: z.string().cuid(),
   mentorId: z.string().cuid()
 })
+
+export const updatePlanSchema = z.object({
+  trainingId: z.string().cuid(),
+  planContent: z.string()
+})
