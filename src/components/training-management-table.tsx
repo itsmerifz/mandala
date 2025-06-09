@@ -11,9 +11,10 @@ import DataTablePagination from "./data-table-pagination"
 import { useDebounce } from "use-debounce"
 import { Input } from "./ui/input"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
-import { ClipboardEditIcon, FilePlusIcon, UserPlusIcon } from "lucide-react"
+import { CalendarCheckIcon, ClipboardEditIcon, FilePlusIcon, UserPlusIcon } from "lucide-react"
 import { EditTrainingPlanDialog } from "./edit-training-plan-dialog"
 import { AddTrainingSessionDialog } from "./add-training-session-dialog"
+import { SetSoloValidityDialog } from "./set-solo-validity-dialog"
 
 type RequestWithDetails = Training & {
   student: { name: string | null, cid: string },
@@ -35,11 +36,11 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
   const [globalFilter, setGlobalFilter] = useState('');
   const [debouncedGlobalFilter] = useDebounce(globalFilter, 300);
   const [dialogState, setDialogState] = useState<{
-    type: 'assign' | 'plan' | 'session' | null;
+    type: 'assign' | 'plan' | 'session' | 'validity' | null;
     request: RequestWithDetails | null
   }>({ type: null, request: null })
 
-  const openDialog = (type: 'assign' | 'plan' | 'session', request: RequestWithDetails) => {
+  const openDialog = (type: 'assign' | 'plan' | 'session' | 'validity', request: RequestWithDetails) => {
     setDialogState({ type, request })
   }
   const closeDialog = () => {
@@ -128,6 +129,16 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
                     <p>Log Training Session</p>
                   </TooltipContent>
                 </Tooltip>
+                {request.type === 'SOLO_ENDORSEMENT' && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('validity', request)} disabled={request.status === 'Pending'}>
+                        <CalendarCheckIcon className="h-4 w-4" /><span className="sr-only">Set Validity</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Set Solo Validity</p></TooltipContent>
+                  </Tooltip>
+                )}
               </TooltipProvider>
             </div>
           );
@@ -208,24 +219,30 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
 
       {dialogState.request && (
         <>
-            <AssignMentorDialog
-                isOpen={dialogState.type === 'assign'}
-                onClose={closeDialog}
-                trainingId={dialogState.request.id}
-                potentialMentors={mentors}
-            />
-            <EditTrainingPlanDialog
-                isOpen={dialogState.type === 'plan'}
-                onClose={closeDialog}
-                trainingId={dialogState.request.id}
-                initialPlan={dialogState.request.trainingPlan}
-            />
-            <AddTrainingSessionDialog
-                isOpen={dialogState.type === 'session'}
-                onClose={closeDialog}
-                trainingId={dialogState.request.id}
-                studentName={dialogState.request.student.name || 'Student'}
-            />
+          <AssignMentorDialog
+            isOpen={dialogState.type === 'assign'}
+            onClose={closeDialog}
+            trainingId={dialogState.request.id}
+            potentialMentors={mentors}
+          />
+          <EditTrainingPlanDialog
+            isOpen={dialogState.type === 'plan'}
+            onClose={closeDialog}
+            trainingId={dialogState.request.id}
+            initialPlan={dialogState.request.trainingPlan}
+          />
+          <AddTrainingSessionDialog
+            isOpen={dialogState.type === 'session'}
+            onClose={closeDialog}
+            trainingId={dialogState.request.id}
+            studentName={dialogState.request.student.name || 'Student'}
+          />
+          <SetSoloValidityDialog
+            isOpen={dialogState.type === 'validity'}
+            onClose={closeDialog}
+            trainingId={dialogState.request.id}
+            soloDetail={dialogState.request.soloDetail}
+          />
         </>
       )}
     </div>

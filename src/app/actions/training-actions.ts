@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { assignMentorSchema, createTrainingSchema, createTrainingSessionSchema, updatePlanSchema } from "@/lib/zod"
+import { assignMentorSchema, createTrainingSchema, createTrainingSessionSchema, setSoloValiditySchema, updatePlanSchema } from "@/lib/zod"
 import { auth } from "@root/auth"
 import { Permission } from "@root/prisma/generated"
 import { revalidatePath } from "next/cache"
@@ -185,4 +185,46 @@ const createTrainingSessionAction = async (formData: FormData) => {
   }
 }
 
-export { createTrainingAction, assignMentorAction, updateTrainingPlanAction, createTrainingSessionAction } 
+const setSoloValidityAction = async (formData: FormData) => {
+  const session = await auth()
+  const currentUserId = session?.user?.id
+
+  if (!currentUserId) return { success: false, error: "Login Required" }
+
+  const parsed = setSoloValiditySchema.safeParse({
+    trainingId: formData.get("trainingId"),
+    validUntil: formData.get("validUntil"),
+  })
+
+  if (!parsed.success) return { success: false, error: "Invalid Data" }
+
+  const { trainingId, validUntil } = parsed.data
+
+  try {
+    const training = await prisma.training.findUnique({
+      where: { id: trainingId },
+      select: { soloDetail: true, mentorId: true }
+    })
+
+    if (!training) return { success: false, error: "Training record not found" }
+
+    const isAssignedMentor = training.mentorId === currentUserId
+
+    if (!isAssignedMentor) return { success: false, error: "You are not authorized to perform this action" }
+    if (!training?.soloDetail) return { success: false, error: "This is not a valid solo endorsement training" }
+
+    await prisma.trainingSoloDetail.update({
+      where: { id: training.soloDetail.id },
+      data: { validUntil },
+    })
+
+    revalidatePath(`/training`)
+    revalidatePath(`/training/manage`)
+    return { success: true, message: "Solo endorsement validity has been set" }
+  } catch (error) {
+    console.error("Error:", error);
+    return { success: false, error: "Failed to set solo validity date" }
+  }
+}
+
+export { createTrainingAction, assignMentorAction, updateTrainingPlanAction, createTrainingSessionAction, setSoloValidityAction } 

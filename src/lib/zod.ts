@@ -89,3 +89,8 @@ export const createTrainingSessionSchema = z.object({
   position: z.string().trim().min(3, 'Position is required'),
   notes: z.string().optional()
 })
+
+export const setSoloValiditySchema = z.object({
+  trainingId: z.string().cuid(),
+  validUntil: z.coerce.date({ required_error: 'Validity date is required'})
+})

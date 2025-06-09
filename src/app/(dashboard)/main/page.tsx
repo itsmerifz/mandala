@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { auth } from '@root/auth'
 import { getQuarterlyCheckDataAction, QuarterlyCheckWebResult } from '@/app/actions/get-quarterly-check'
+import { prisma } from '@/lib/prisma'
+import { format } from 'date-fns'
 
 async function fetchGeneralVATSIMData(url: string, revalidateSeconds: number = 300) {
   try {
@@ -29,6 +31,17 @@ const page = async () => {
 
   const statsUrl = `https://api.vatsim.net/v2/members/${userIdForApi}/stats`;
   const atcUrl = `https://api.vatsim.net/v2/members/${userIdForApi}/atc?limit=1`;
+
+  const activeTraining = await prisma.training.findFirst({
+    where: {
+      studentId: session?.user?.id,
+      status: 'In Progress',
+    },
+    include: {
+      ratingDetail: true,
+      soloDetail: true,
+    }
+  })
 
   const [onlineHoursData, lastATCOnlineData] = await Promise.all([
     fetchGeneralVATSIMData(statsUrl, 300),
@@ -88,15 +101,28 @@ const page = async () => {
       </div>
       <div className='flex flex-wrap gap-5 justify-start items-center mt-5'>
         <Card className='w-full'>
-          <CardHeader className='flex flex-col items-start justify-start'>
+          <CardHeader>
             <CardTitle className='text-2xl font-bold'>Training Status</CardTitle>
-            <Separator className='w-full my-2' />
-            <CardContent>
-              <p className='text-2xl font-thin'>Solo Training at WAAF_CTR (Until 25-09-2025)</p>
-            </CardContent>
           </CardHeader>
+          <Separator />
+          <CardContent className="pt-4">
+            {activeTraining ? (
+              <p className='text-2xl font-thin'>
+                {activeTraining.type === 'SOLO_ENDORSEMENT' && activeTraining.soloDetail &&
+                  `Solo Training at ${activeTraining.soloDetail.position} (Until ${format(new Date(activeTraining.soloDetail.validUntil!), 'dd-MM-yyyy')})`
+                }
+                {activeTraining.type === 'RATING_PROGRESSION' && activeTraining.ratingDetail &&
+                  `Training for ${activeTraining.ratingDetail.targetRating} Rating`
+                }
+                {activeTraining.type === 'RECURRENT_TRAINING' && 'Recurrent Training in progress'}
+              </p>
+            ) : (
+              <p className='text-2xl font-thin text-muted-foreground'>
+                No active training session.
+              </p>
+            )}
+          </CardContent>
         </Card>
-
       </div>
     </>
   )
