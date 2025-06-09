@@ -47,7 +47,7 @@ const RequestTrainingForm = () => {
           <div>
             <Label htmlFor='trainingType' className='block text-sm font-medium mb-2'>Training Type</Label>
             <Select name='trainingType' onValueChange={val => setSelectedType(val as TrainingType)} required>
-              <SelectTrigger id='trainingType'>
+              <SelectTrigger id='trainingType' className='w-full'>
                 <SelectValue placeholder='Select Training Type...' />
               </SelectTrigger>
               <SelectContent>
@@ -60,7 +60,19 @@ const RequestTrainingForm = () => {
           {selectedType === TrainingType.RATING_PROGRESSION && (
             <div>
               <Label htmlFor='targetRating' className='block text-sm font-medium mb-2'>Target Rating</Label>
-              <Input id='targetRating' name='targetRating' placeholder='Example: S1' required />
+              <Select name='targetRating' required>
+                <SelectTrigger id='targetRating' className='w-full'>
+                  <SelectValue placeholder='Select Target Rating...' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='S1'>S1</SelectItem>
+                  <SelectItem value='S2'>S2</SelectItem>
+                  <SelectItem value='S3'>S3</SelectItem>
+                  <SelectItem value='C1'>C1</SelectItem>
+                  <SelectItem value='C2'>C2</SelectItem>
+                  <SelectItem value='C3'>C3</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
           {selectedType === TrainingType.SOLO_ENDORSEMENT && (

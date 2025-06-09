@@ -24,7 +24,7 @@ export function AssignMentorDialog({ isOpen, onClose, trainingId, potentialMento
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedMentorId) {
-        setError("Silakan pilih seorang mentor.");
+        setError("Please choose a mentor.");
         return;
     }
     setError(null);
@@ -36,10 +36,10 @@ export function AssignMentorDialog({ isOpen, onClose, trainingId, potentialMento
     startTransition(async () => {
       const result = await assignMentorAction(formData);
       if (result.success) {
-        alert(result.message || "Sukses!");
+        alert(result.message || "Success!");
         onClose();
       } else {
-        setError(result.error || 'Terjadi kesalahan.');
+        setError(result.error || 'Something went wrong.');
       }
     });
   };
@@ -48,14 +48,14 @@ export function AssignMentorDialog({ isOpen, onClose, trainingId, potentialMento
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Tugaskan Mentor</DialogTitle>
+          <DialogTitle>Assign Mentor</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           <div>
-            <label htmlFor="mentor-select" className="text-sm font-medium">Pilih Mentor</label>
+            <label htmlFor="mentor-select" className="text-sm font-medium">Select Mentor</label>
             <Select onValueChange={setSelectedMentorId} value={selectedMentorId}>
               <SelectTrigger id="mentor-select">
-                <SelectValue placeholder="Pilih seorang mentor..." />
+                <SelectValue placeholder="Select a mentor..." />
               </SelectTrigger>
               <SelectContent>
                 {potentialMentors.map((mentor) => (
@@ -69,12 +69,12 @@ export function AssignMentorDialog({ isOpen, onClose, trainingId, potentialMento
           {error && <p className="text-sm text-red-500">{error}</p>}
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="ghost" onClick={onClose} disabled={isPending}>
-                  Batal
+                <Button type="button" variant="destructive" onClick={onClose} disabled={isPending}>
+                  Cancel
                 </Button>
             </DialogClose>
-            <Button type="submit" disabled={!selectedMentorId || isPending}>
-              {isPending ? 'Menugaskan...' : 'Tugaskan'}
+            <Button type="submit" variant='outline' disabled={!selectedMentorId || isPending}>
+              {isPending ? 'Assigning...' : 'Assign'}
             </Button>
           </DialogFooter>
         </form>

@@ -2,11 +2,14 @@
 
 import type { Training, TrainingRatingDetail, TrainingSoloDetail, User } from "@root/prisma/generated"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table"
-import React, { useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { AssignMentorDialog } from "./assign-mentor-dialog"
-import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from "@tanstack/react-table"
+import { ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, RowSelectionState, SortingState, useReactTable } from "@tanstack/react-table"
+import DataTablePagination from "./data-table-pagination"
+import { useDebounce } from "use-debounce"
+import { Input } from "./ui/input"
 
 type RequestWithDetails = Training & {
   student: { name: string | null, cid: string },
@@ -23,10 +26,13 @@ interface TrainingManagementTableProps {
 }
 
 const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ requests, mentors }) => {
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false)
-  const [selectedRequest, setSelectedRequest] = React.useState<RequestWithDetails | null>(null)
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [debouncedGlobalFilter] = useDebounce(globalFilter, 300);
 
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<RequestWithDetails | null>(null);
   const openDialog = (request: RequestWithDetails) => {
     setSelectedRequest(request)
     setIsDialogOpen(true)
@@ -45,10 +51,7 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
         cell: ({ row }) => {
           const student = row.original.student;
           return (
-            <div>
-              <div className="font-medium">{student.name}</div>
-              <div className="text-sm text-muted-foreground">{student.cid}</div>
-            </div>
+            <div className="font-medium">{student.name}</div>
           );
         },
       },
@@ -92,7 +95,7 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
           return (
             <div className="text-right">
               {request.status === 'Pending' && (
-                <Button size="sm" onClick={() => openDialog(request)}>
+                <Button size="sm" variant='outline' onClick={() => openDialog(request)}>
                   Assign Mentor
                 </Button>
               )}
@@ -108,11 +111,19 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
     columns,
     state: {
       sorting,
+      rowSelection,
+      globalFilter: debouncedGlobalFilter
     },
     onSortingChange: setSorting,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: (row, filterValue) => {
+      const studentName = row.original.student.name?.toLowerCase() || '';
+      return studentName.includes(filterValue.toLowerCase());
+    },
     initialState: { pagination: { pageSize: 5 } }
   });
 
@@ -121,75 +132,49 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
   }
 
   return (
-    <>
+    <div className="space-y-4">
+      <Input
+        placeholder="Search by student name..."
+        value={globalFilter}
+        onChange={(event) => setGlobalFilter(event.target.value)}
+        className="max-w-sm"
+      />
       <div className="border rounded-md">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    {{
-                      asc: ' ▲',
-                      desc: ' ▼',
-                    }[header.column.getIsSorted() as string] ?? null}
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        className={header.column.getCanSort() ? 'cursor-pointer select-none flex items-center' : ''}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {{ asc: ' ▲', desc: ' ▼' }[header.column.getIsSorted() as string] ?? null}
+                      </div>
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No data.
-                </TableCell>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
               </TableRow>
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <span className="text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
-      </div>
+      <DataTablePagination table={table} />
 
       {isDialogOpen && selectedRequest && (
         <AssignMentorDialog
@@ -199,7 +184,7 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
           potentialMentors={mentors}
         />
       )}
-    </>
+    </div>
   );
 }
 

@@ -48,7 +48,7 @@ const page = async () => {
             <CardTitle className='text-2xl font-bold'>Rating</CardTitle>
             <Separator className='w-full my-2' />
             <CardContent>
-              <p className='text-2xl font-thin'>{session?.user?.ratingShort} - ({session?.user?.ratingLong})</p>
+              <p className='text-2xl font-thin'>{session?.user.ratingShort} - ({session?.user?.ratingLong})</p>
             </CardContent>
           </CardHeader>
         </Card>

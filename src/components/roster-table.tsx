@@ -1,138 +1,143 @@
 'use client'
-import React from 'react'
-import { CardHeader, CardContent } from './ui/card'
-import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table'
+import React, { useMemo, useState } from 'react'
+import { ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table'
 import { Roster } from '@/app/types'
 import { Input } from './ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import RatingBadge from './rating-badge'
-import { Button } from './ui/button'
 import { useDebounce } from 'use-debounce'
 import CertificateBadge from './certificate-badge'
 import RosterPopover from './roster-popover'
+import DataTablePagination from './data-table-pagination'
 
 
 const RosterTable = ({ data }: { data: Roster[] }) => {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [pageIndex, setPageIndex] = React.useState(0)
-  const [pageSize, setPageSize] = React.useState(5)
-  const [search, setSearch] = React.useState('')
-  const [debouncedSearch] = useDebounce(search, 500)
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [debouncedGlobalFilter] = useDebounce(globalFilter, 300); // Debounce for performance
 
-  const filteredData = React.useMemo(() => {
-    return data.filter(user => user.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
-  }, [data, debouncedSearch])
+  const columns = useMemo<ColumnDef<Roster>[]>(
+    () => [
+      {
+        accessorKey: 'cid',
+        header: 'CID',
+      },
+      {
+        accessorKey: 'name',
+        header: 'Name',
+      },
+      {
+        accessorKey: 'rating',
+        header: 'Rating',
+        cell: ({ getValue }) => <RatingBadge ratingName={getValue<string>()} />,
+      },
+      {
+        id: 'certificates',
+        accessorKey: 'certificates',
+        header: 'Certificates',
+        cell: ({ row }) => {
+          const certs = row.original.certificates;
+          if (!certs || certs.length === 0) return <span className="text-muted-foreground text-xs">N/A</span>;
 
-  const rosterColumns: ColumnDef<Roster>[] = [
-    {
-      accessorKey: 'cid',
-      header: 'CID'
-    },
-    {
-      accessorKey: 'name',
-      header: 'Name'
-    },
-    {
-      accessorKey: 'rating',
-      header: 'Rating',
-      cell: ({ getValue }) => <RatingBadge ratingName={getValue() as string} />
-    },
-    {
-      accessorKey: 'certificate',
-      header: 'Certificate',
-      cell: ({ row }) => {
-        const certs = row.original.certificates
-        if (!certs) return null
-
-        return (
-          <div className="flex flex-wrap gap-2">
-            {certs.map(cert => (
-              <CertificateBadge
-                key={cert.id}
-                code={cert.code}
-                color={cert.color}
-                isOnTraining={cert.isOnTraining}
-                notes={cert.notes}
-              />
-            ))}
+          return (
+            <div className="flex flex-wrap gap-2">
+              {certs.map((cert) => (
+                <CertificateBadge
+                  key={cert.id}
+                  code={cert.code}
+                  color={cert.color}
+                  isOnTraining={cert.isOnTraining}
+                  notes={cert.notes}
+                />
+              ))}
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
+      {
+        id: 'actions',
+        header: () => <div className="text-right">Actions</div>,
+        cell: ({ row }) => (
+          <div className="text-right">
+            <RosterPopover cid={row.original.cid} />
           </div>
-        )
-      }
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => <RosterPopover cid={row.original.cid}/>
-    }
-  ]
+        ),
+      },
+    ],
+    []
+  );
 
-  const rosterTable = useReactTable({
-    data: filteredData,
-    columns: rosterColumns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+  const table = useReactTable({
+    data,
+    columns,
     state: {
       sorting,
-      pagination: {
-        pageIndex,
-        pageSize
-      }
+      globalFilter: debouncedGlobalFilter, // Use the debounced value for filtering
     },
     onSortingChange: setSorting,
-    onPaginationChange: (updater) => {
-      const next = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater
-      setPageIndex(next.pageIndex ?? pageIndex)
-      setPageSize(next.pageSize ?? pageSize)
+    onGlobalFilterChange: setGlobalFilter, // Allow TanStack to manage filter state if needed
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(), // Enable filtering
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: { pageSize: 10 } // Set default page size
     }
-  })
+  });
 
   return (
-    <>
-      <CardHeader>
+    <div className="space-y-4">
+      <div className="p-4">
         <Input
-          placeholder='Search name...'
-          className='max-w-sm'
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
         />
-      </CardHeader>
-      <CardContent className='overflow-auto h-[calc(100vh-200px)]'>
+      </div>
+      <div className="border rounded-md">
         <Table>
           <TableHeader>
-            {rosterTable.getHeaderGroups().map(group => (
-              <TableRow key={group.id}>
-                {group.headers.map(header => (
-                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className="cursor-pointer select-none">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}>
                     {flexRender(header.column.columnDef.header, header.getContext())}
-                    {{ asc: ' 🔼', desc: ' 🔽' }[header.column.getIsSorted() as string] ?? null}
+                    {{
+                      asc: ' ▲',
+                      desc: ' ▼',
+                    }[header.column.getIsSorted() as string] ?? null}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {rosterTable.getRowModel().rows.map(row => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map(cell => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
-        <div className='flex items-center justify-end gap-7 p-4 mt-4'>
-          <div>Page {rosterTable.getState().pagination.pageIndex + 1} of {rosterTable.getPageCount()}</div>
-          <Button className='w-24' variant={'outline'} onClick={() => rosterTable.previousPage()} disabled={!rosterTable.getCanPreviousPage()}>Previous</Button>
-          <Button className='w-24' variant={'outline'} onClick={() => rosterTable.nextPage()} disabled={!rosterTable.getCanNextPage()}>Next</Button>
-        </div>
-      </CardContent>
+      </div>
 
-
-    </>
-  )
+      <DataTablePagination table={table} />
+    </div>
+  );
 }
 
 export default RosterTable

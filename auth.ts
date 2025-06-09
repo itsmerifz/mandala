@@ -7,6 +7,27 @@ import { PrismaClient } from "@prisma/client";
 import { AppRoleInSession, ProviderUserProfile, VATSIMData } from "./next-auth";
 import { Prisma, Permission as PrismaPermissionEnum } from "@root/prisma/generated";
 
+const getStaffCIDList = async (): Promise<string[]> => {
+  if (process.env.NODE_ENV === 'development') return ['10000007', '10000003']
+  else {
+    try {
+      const response = await fetch('http://hq.vat-sea.com/api/vacc/IDN/staff', {
+        next: { revalidate: 3600 }
+      })
+
+      if (!response.ok) throw new Error(`Failed to get data, Error: ${response.status}`)
+      const staffData: { cid: number }[] = await response.json()
+      if (Array.isArray(staffData)) {
+        const cidList = staffData.map(staff => staff.cid.toString())
+        return cidList
+      }
+      console.warn("API didn't get staff CID")
+      return []
+    } catch {
+      return []
+    }
+  }
+}
 
 const CustomAdapter = (prisma: PrismaClient): Adapter => {
   return {
@@ -19,12 +40,10 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
       }
 
       if (profile.ratingId == null || profile.ratingShort == null || profile.ratingLong == null) {
-        // ratingId bisa 0 (OBS), jadi cek null/undefined saja
         throw new Error("Adapter: Missing required rating fields for creating user.");
       }
 
       const newUserInput = {
-        id: profile.id,
         cid: profile.cid,
         name: profile.name,
         email: profile.email,
@@ -33,17 +52,44 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         ratingLong: profile.ratingLong,
       };
 
-      console.log('Adapter: Data for prisma.user.create:', JSON.stringify(newUserInput, null, 2));
+      try {
+        const createdUser = await prisma.$transaction(async tx => {
+          const newUser = await tx.user.create({
+            data: newUserInput
+          })
 
-      const createdUser = await prisma.user.create({
-        data: newUserInput
-      });
+          const staffList = await getStaffCIDList()
+          if (staffList.includes(newUser.cid)) {
+            const adminRole = await tx.role.findFirst({
+              where: { permissions: { some: { permission: 'ADMINISTRATOR' } } }
+            })
 
-      console.log('Adapter: User created in DB:', JSON.stringify(createdUser, null, 2));
-      return {
-        ...createdUser,
-        emailVerified: true,
-      } as any;
+            if (adminRole) {
+              await tx.user.update({
+                where: { id: newUser.id },
+                data: {
+                  roles: { connect: { id: adminRole.id } },
+                  permissionsLastUpdatedAt: new Date(),
+                }
+              });
+              console.log(`Adapter: Assigned role '${adminRole.name}' to user ${newUser.id}`);
+            }
+          }
+          return newUser
+        })
+        console.log('Adapter: User created in DB:', JSON.stringify(createdUser, null, 2));
+        return {
+          ...createdUser,
+          emailVerified: true,
+        } as any;
+      } catch (error) {
+        throw error
+      }
+
+      // const createdUser = await prisma.user.create({
+      //   data: newUserInput
+      // });
+
     },
     updateUser: async ({ id, ...data }) => {
       console.log('Updating user with ID:', id, 'and data:', data);
@@ -108,7 +154,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
     },
     linkAccount: async (data: AdapterAccount) => {
       console.log('Linking account with data:', JSON.stringify(data, null, 2));
-      const dataForPrisma: Prisma.AccountCreateInput = { 
+      const dataForPrisma: Prisma.AccountCreateInput = {
         user: { connect: { id: data.userId as string } },
         type: data.type,
         provider: data.provider,
@@ -191,10 +237,8 @@ const providers: Provider[] = [
     userinfo: process.env.NODE_ENV === 'development' ? `${process.env.AUTH_OAUTH_URL_DEV}/api/user` : `${process.env.AUTH_OAUTH_URL}/api/user`,
     profile(vatsimProfile: Profile): Promise<ProviderUserProfile> {
       const rawData = vatsimProfile.data
-      console.log('Profile data received from VATSIM:', JSON.stringify(rawData, null, 2));
 
       if (!rawData || !rawData.cid || !rawData.personal || !rawData.vatsim || !rawData.vatsim.rating) {
-        console.error("VATSIM profile data is incomplete:", rawData);
         throw new Error("VATSIM profile data is incomplete or not in the expected format.");
       }
 
@@ -223,145 +267,80 @@ export const authOptions: NextAuthConfig = {
     signIn: "/",
   },
   callbacks: {
-    async jwt({ token, user, account, profile: vatsimProfileFromProvider, trigger }) {
-      let shouldReFetchPermissions = false
-      let userForPermissionFetchId: string | undefined = token.userIdDb as string | undefined
-
-      if (user?.id) {
+    async jwt({ token, user, account, profile }) {
+      if (account && user) {
         token.userIdDb = user.id
-        userForPermissionFetchId = user.id
         token.cid = (user as any).cid
 
-        if (account || trigger === "update" || trigger === "signIn" || trigger === "signUp") {
-          shouldReFetchPermissions = true;
+        if (profile?.data) {
+          token.rawVatsimProfileData = profile.data as VATSIMData;
         }
+      }
 
+      if (token.userIdDb) {
+        let shouldReFetchPermissions = !token.appPermissions
 
-        const prismaUserWithDetails = await prisma.user.findUnique({
-          where: { id: user.id },
-          include: {
-            roles: { include: { permissions: true } },
-          },
-        });
-
-        if (prismaUserWithDetails) {
-          const appPermissionsSet = new Set<PrismaPermissionEnum>();
-          const appRolesData: AppRoleInSession[] = prismaUserWithDetails.roles.map(role => {
-            role.permissions.forEach(p => appPermissionsSet.add(p.permission));
-            return {
-              id: role.id,
-              name: role.name,
-              color: role.color,
-              permissions: role.permissions.map(p => p.permission)
-            };
+        if (!shouldReFetchPermissions) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userIdDb as string },
+            select: { permissionsLastUpdatedAt: true }
           });
-          token.appRoles = appRolesData;
-          token.appPermissions = Array.from(appPermissionsSet);
-        }
-      }
-
-      if (userForPermissionFetchId && !shouldReFetchPermissions) {
-        console.log("JWT: Validating existing token for user DB ID:", userForPermissionFetchId)
-        const dbUser = await prisma.user.findUnique({
-          where: { id: userForPermissionFetchId },
-          select: { permissionsLastUpdatedAt: true }
-        })
-
-        const dbTimestamp = dbUser?.permissionsLastUpdatedAt
-        const tokenTimestampString = token.permissionsLastUpdatedAt
-        const tokenTimestamp = tokenTimestampString ? new Date(tokenTimestampString) : null
-
-        if (dbTimestamp && (!tokenTimestamp || dbTimestamp.getTime() > tokenTimestamp.getTime())) {
-          console.log("JWT: Permissions timestamp in DB is newer. Re-fetching permissions.")
-          shouldReFetchPermissions = true
-        } else if (!dbTimestamp && tokenTimestamp) {
-          console.log("JWT: DB timestamp is null, token has one. Re-fetching to sync.")
-          shouldReFetchPermissions = true
-        }
-      } else if (userForPermissionFetchId && !token.appPermissions && !shouldReFetchPermissions) {
-        console.log("JWT: Token exists but appPermissions missing. Forcing re-fetch for user:", userForPermissionFetchId)
-        shouldReFetchPermissions = true
-      }
-
-      if (shouldReFetchPermissions && userForPermissionFetchId) {
-        console.log("JWT: Fetching/Re-fetching appRoles, appPermissions, and timestamp for user:", userForPermissionFetchId);
-        const prismaUserWithDetails = await prisma.user.findUnique({
-          where: { id: userForPermissionFetchId },
-          include: { // Pastikan `include` atau `select` sesuai dengan apa yang Anda butuhkan
-            roles: {
-              include: { permissions: true }
-            },
+          const dbTimestamp = dbUser?.permissionsLastUpdatedAt;
+          const tokenTimestamp = token.permissionsLastUpdatedAt ? new Date(token.permissionsLastUpdatedAt as string) : null;
+          if (dbTimestamp && (!tokenTimestamp || dbTimestamp.getTime() > tokenTimestamp.getTime())) {
+            shouldReFetchPermissions = true;
           }
-        });
+        }
 
-        if (prismaUserWithDetails) {
-          token.cid = prismaUserWithDetails.cid; // Ambil CID dari DB jika belum ada di token
-          const appPermissionsSet = new Set<PrismaPermissionEnum>();
-          const appRolesData: AppRoleInSession[] = prismaUserWithDetails.roles.map(role => {
-            role.permissions.forEach(p => appPermissionsSet.add(p.permission));
-            return {
-              id: role.id,
-              name: role.name,
-              color: role.color ?? null, // Pastikan null jika opsional
-              permissions: role.permissions.map(p => p.permission)
-            };
+        if (shouldReFetchPermissions) {
+          const userWithRolesAndPermissions = await prisma.user.findUnique({
+            where: { id: token.userIdDb as string },
+            include: {
+              roles: { include: { permissions: true } },
+            },
           });
-          token.appRoles = appRolesData;
-          token.appPermissions = Array.from(appPermissionsSet);
-          token.permissionsLastUpdatedAt = prismaUserWithDetails.permissionsLastUpdatedAt?.toISOString() ?? null;
-        } else {
-          console.warn("JWT: User not found in DB during permission fetch for ID:", userForPermissionFetchId);
-          token.appRoles = [];
-          token.appPermissions = [];
-          token.permissionsLastUpdatedAt = null; // Reset jika pengguna tidak ditemukan
+
+          if (userWithRolesAndPermissions) {
+            const appPermissionsSet = new Set<PrismaPermissionEnum>();
+            userWithRolesAndPermissions.roles.forEach(role => {
+              role.permissions.forEach(p => appPermissionsSet.add(p.permission));
+            });
+            token.appPermissions = Array.from(appPermissionsSet);
+            token.permissionsLastUpdatedAt = userWithRolesAndPermissions.permissionsLastUpdatedAt?.toISOString() ?? null;
+          }
         }
       }
-
-
-      if (account && vatsimProfileFromProvider?.data) {
-        token.rawVatsimProfileData = vatsimProfileFromProvider.data as VATSIMData; // Casting
-        if (!token.cid && vatsimProfileFromProvider.data.cid) {
-          token.cid = vatsimProfileFromProvider.data.cid;
-        }
-      }
-      console.log("JWT Callback: returning token:", JSON.stringify(token, null, 2));
       return token;
     },
     async session({ session, token }) {
-      console.log("Session Callback: received token:", JSON.stringify(token, null, 2));
       if (token.userIdDb && session.user) {
-        session.user.id = token.userIdDb
-        session.user.appRoles = token.appRoles
+        session.user.id = token.userIdDb as string
+        session.user.cid = token.cid as string
         session.user.appPermissions = token.appPermissions
-        session.user.cid = token.cid || ""
 
-        // Isi detail user dari data VATSIM mentah yang disimpan di token
         if (token.rawVatsimProfileData) {
-          const vData = token.rawVatsimProfileData;
-          session.user.name = vData.personal.name_full;
-          session.user.email = vData.personal.email;
-          session.user.vatsimPersonal = vData.personal;
-          session.user.vatsimDetails = vData.vatsim;
-          session.user.ratingId = vData.vatsim.rating.id;
-          session.user.ratingShort = vData.vatsim.rating.short;
-          session.user.ratingLong = vData.vatsim.rating.long;
-        } else if (token.userIdDb && (!session.user.name || !session.user.email || !session.user.cid)) {
-          console.log("Session: rawVatsimProfileData missing, attempting to fill some user details from DB for user:", token.userIdDb)
+          const vData = token.rawVatsimProfileData
+          session.user.name = vData.personal.name_full
+          session.user.email = vData.personal.email
+          session.user.vatsimPersonal = vData.personal
+          session.user.vatsimDetails = vData.vatsim
+          session.user.ratingId = vData.vatsim.rating.id
+          session.user.ratingShort = vData.vatsim.rating.short
+          session.user.ratingLong = vData.vatsim.rating.long
+        } else {
           const dbUser = await prisma.user.findUnique({
-            where: { id: token.userIdDb },
-            select: { name: true, email: true, cid: true, ratingId: true, ratingShort: true, ratingLong: true }
-          });
+            where: { id: token.userIdDb as string }
+          })
+
           if (dbUser) {
-            session.user.name = session.user.name || dbUser.name;
-            session.user.email = session.user.email || dbUser.email;
-            session.user.cid = session.user.cid || dbUser.cid;
-            session.user.ratingId = session.user.ratingId ?? dbUser.ratingId;
-            session.user.ratingShort = session.user.ratingShort || dbUser.ratingShort;
-            session.user.ratingLong = session.user.ratingLong || dbUser.ratingLong;
+            session.user.name = dbUser.name;
+            session.user.email = dbUser.email;
+            session.user.ratingId = dbUser.ratingId;
+            session.user.ratingShort = dbUser.ratingShort;
+            session.user.ratingLong = dbUser.ratingLong;
           }
         }
       }
-      console.log("Session Callback: returning session.user:", JSON.stringify(session.user, null, 2));
       return session;
     },
   },

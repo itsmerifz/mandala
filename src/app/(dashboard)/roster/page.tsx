@@ -37,7 +37,7 @@ const Roster = async () => {
   return (
     <>
       <h1 className='text-3xl font-bold'>Roster List</h1>
-      <Card className='w-auto h-[calc(100vh-200px)] mt-5'>
+      <Card className='w-auto h-[calc(100vh-200px)] mt-5 p-3'>
         <RosterTable data={data} />
       </Card>
     </>

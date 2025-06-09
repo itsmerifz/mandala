@@ -14,12 +14,12 @@ const userHasPermissionOrIsAdmin = (
 ): boolean => {
   if (!userPermissions || userPermissions.length === 0) return false;
 
-  // Jika pengguna adalah ADMINISTRATOR, selalu berikan akses
+  // If the user is an ADMINISTRATOR, always grant access.
   if (userPermissions.includes(PrismaPermissionEnum.ADMINISTRATOR)) {
     return true;
   }
 
-  // Jika bukan admin, cek permission spesifik
+  // If not an admin, check for the specific required permission(s).
   if (Array.isArray(required)) {
     return required.some(p => userPermissions.includes(p));
   }
