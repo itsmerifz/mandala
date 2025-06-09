@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { assignMentorSchema, createTrainingSchema, updatePlanSchema } from "@/lib/zod"
+import { assignMentorSchema, createTrainingSchema, createTrainingSessionSchema, updatePlanSchema } from "@/lib/zod"
 import { auth } from "@root/auth"
 import { Permission } from "@root/prisma/generated"
 import { revalidatePath } from "next/cache"
@@ -111,9 +111,9 @@ const assignMentorAction = async (formData: FormData) => {
 
 const updateTrainingPlanAction = async (formData: FormData) => {
   const session = await auth()
-  const mentorId = session?.user?.id
+  const currentUserId = session?.user?.id
 
-  if (!mentorId) return { success: false, error: "Login Required" }
+  if (!currentUserId) return { success: false, error: "Login Required" }
 
   const parsed = updatePlanSchema.safeParse({
     trainingId: formData.get('trainingId'),
@@ -125,15 +125,11 @@ const updateTrainingPlanAction = async (formData: FormData) => {
   const { trainingId, planContent } = parsed.data
 
   try {
-    const trainingRecord = await prisma.training.findUnique({
-      where: { id: trainingId },
-      select: { mentorId: true }
+    const training = await prisma.training.findFirst({
+      where: { id: trainingId, mentorId: currentUserId }
     })
 
-    if (!trainingRecord || trainingRecord.mentorId !== mentorId) {
-      const isStaff = session.user.appPermissions?.includes(Permission.MANAGE_TRAINING)
-      if (!isStaff) return { success: false, error: "You aren't student mentor" }
-    }
+    if (!training) return { success: false, error: "You aren't student mentor" }
 
     await prisma.training.update({
       where: { id: trainingId },
@@ -141,11 +137,52 @@ const updateTrainingPlanAction = async (formData: FormData) => {
     })
 
     revalidatePath('/training')
-    return { success: true, message: "Training Plan was updated" }
+    revalidatePath('/training/manage')
+    return { success: true, message: "Training Plan has been updated" }
   } catch (error) {
     console.error('Error:', error)
     return { success: false, error: "Error when update training plan" }
   }
 }
 
-export { createTrainingAction, assignMentorAction, updateTrainingPlanAction } 
+const createTrainingSessionAction = async (formData: FormData) => {
+  const session = await auth()
+  const mentorId = session?.user.id
+
+  if (!mentorId) return { success: false, error: "Login Required" }
+
+  const parsed = createTrainingSessionSchema.safeParse({
+    trainingId: formData.get('trainingId'),
+    sessionDate: formData.get('sessionDate'),
+    position: formData.get('position'),
+    notes: formData.get('notes')
+  })
+
+  if (!parsed.success) return { success: false, error: "Invalid Data" }
+
+  const { trainingId, ...sessionData } = parsed.data
+
+  try {
+    const training = await prisma.training.findFirst({
+      where: { id: trainingId, mentorId: mentorId }
+    })
+
+    if (!training) return { success: false, error: "You aren't student mentor" }
+    await prisma.trainingSession.create({
+      data: {
+        trainingId,
+        mentorId,
+        ...sessionData,
+      },
+    })
+
+    revalidatePath('/training')
+    revalidatePath('/training/manage')
+    return { success: true, message: "Training session has been successfully logged" }
+  } catch (error) {
+    console.error("Error:", error)
+    return { success: false, error: "Failed to log training session" };
+  }
+}
+
+export { createTrainingAction, assignMentorAction, updateTrainingPlanAction, createTrainingSessionAction } 

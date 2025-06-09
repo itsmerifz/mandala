@@ -1,130 +1,133 @@
-import RequestTrainingForm from '@/components/request-training-dialog'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { prisma } from '@/lib/prisma'
-import { auth } from '@root/auth'
-import React from 'react'
+import React from 'react';
+import { auth } from '@root/auth';
+import { prisma } from '@/lib/prisma';
+import { redirect } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { TrainingSessionHistory } from '@/components/training-session-history'
+import RequestTrainingDialog from '@/components/request-training-dialog';
+import { Badge } from '@/components/ui/badge';
 
-const page = async () => {
-  const session = await auth()
+const TrainingCenterPage = async () => {
+  const session = await auth();
+  if (!session?.user?.id) {
+    redirect('/api/auth/signin');
+  }
 
+  // --- Data Fetching Happens on the Server ---
   const activeTraining = await prisma.training.findFirst({
     where: {
-      studentId: session?.user?.id,
-      status: { in: ['Pending', 'In Progress'] }
+      studentId: session.user.id,
+      status: { in: ['Pending', 'In Progress'] },
     },
     include: {
       mentor: { select: { name: true } },
       ratingDetail: true,
       soloDetail: true
     }
-  })
+  });
 
   const trainingHistory = await prisma.trainingSession.findMany({
-    where: { training: { studentId: session?.user.id } },
+    where: {
+      training: { studentId: session.user.id },
+    },
+    orderBy: { sessionDate: 'desc' },
     take: 5,
-    include: { mentor: { select: { name: true } } }
-  })
-
+    include: {
+      mentor: { select: { name: true } },
+    }
+  });
+  // --- End of Data Fetching ---
 
   return (
-    <div className='space-y-3'>
-      <div className='space-y-6'>
+    <>
+      <div className="flex justify-between items-center mb-6">
         <h1 className='text-3xl font-bold'>Training Center</h1>
-        {!activeTraining && <RequestTrainingForm />}
+        {!activeTraining && <RequestTrainingDialog />}
       </div>
-      <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-        <Card className='md:col-span-2'>
-          <CardHeader>
-            <CardTitle>Current Training Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeTraining ? (
-              <div className='space-y-3'>
-                <div className='flex justify-between'>
-                  <span className='text-muted-foreground'>Type</span>
-                  <Badge variant='outline'>{activeTraining.type}</Badge>
-                </div>
-                {activeTraining.ratingDetail && (
-                  <div className='flex justify-between'>
-                    <span className='text-muted-foreground'>Target</span>
-                    <span>{activeTraining.ratingDetail.targetRating}</span>
-                  </div>
-                )}
-                {activeTraining.soloDetail && (
-                  <div className='flex justify-between'>
-                    <span className='text-muted-foreground'>Position</span>
-                    <span>{activeTraining.soloDetail.position}</span>
-                  </div>
-                )}
-                <div className='flex justify-between'>
-                  <span className='text-muted-foreground'>Status</span>
-                  <span className='font-semibold'>{activeTraining.status}</span>
-                </div>
-                <div className='flex justify-between'>
-                  <span className='text-muted-foreground'>Mentor</span>
-                  <span className='font-semibold'>{activeTraining.mentor?.name || 'Not assigned'}</span>
-                </div>
-                {activeTraining.notes && (
-                  <div className='pt-2'>
-                    <p className='text-muted-foreground text-sm'>Notes</p>
-                    <p className='text-sm italic'>{activeTraining.notes}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className='text-center py-8'>
-                <p className='text-muted-foreground'>You didn&apos;t have any requests.</p>
-                <p className='text-muted-foreground text-sm'>Click &quot;Request New Training&quot; to start.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Training Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeTraining ? (
+                <div className='space-y-3'>
+                  <div className='flex justify-between'>
+                    <span className='text-muted-foreground'>Type</span>
+                    <Badge variant='outline'>{activeTraining.type}</Badge>
+                  </div>
+                  {activeTraining.ratingDetail && (
+                    <div className='flex justify-between'>
+                      <span className='text-muted-foreground'>Target</span>
+                      <span>{activeTraining.ratingDetail.targetRating}</span>
+                    </div>
+                  )}
+                  {activeTraining.soloDetail && (
+                    <div className='flex justify-between'>
+                      <span className='text-muted-foreground'>Position</span>
+                      <span>{activeTraining.soloDetail.position}</span>
+                    </div>
+                  )}
+                  <div className='flex justify-between'>
+                    <span className='text-muted-foreground'>Status</span>
+                    <span className='font-semibold'>{activeTraining.status}</span>
+                  </div>
+                  <div className='flex justify-between'>
+                    <span className='text-muted-foreground'>Mentor</span>
+                    <span className='font-semibold'>{activeTraining.mentor?.name || 'Not assigned'}</span>
+                  </div>
+                  {activeTraining.notes && (
+                    <div className='pt-2'>
+                      <p className='text-muted-foreground text-sm'>Notes</p>
+                      <p className='text-sm italic'>{activeTraining.notes}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  You do not have an active training request.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Last Session Training</CardTitle>
+              <CardDescription>
+                Review your most recent training sessions and feedback.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrainingSessionHistory sessions={trainingHistory} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Training Plan</CardTitle>
-            <CardDescription>Your any training plan and strategies.</CardDescription>
+            <CardDescription>
+              Notes and schedule from your mentor.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {activeTraining && activeTraining.trainingPlan ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm">{activeTraining.trainingPlan}</pre>
+            {activeTraining?.trainingPlan ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                {activeTraining.trainingPlan}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                {activeTraining ? "Mentor has not added a training plan" : "No active training"}
+                {activeTraining ? "Your mentor has not added a plan yet." : "No active training."}
               </p>
             )}
           </CardContent>
         </Card>
-
-        <Card className="md:col-span-3">
-          <CardHeader>
-            <CardTitle>Last Session Training</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {trainingHistory.length > 0 ? (
-              <ul className="space-y-4">
-                {trainingHistory.map((session) => (
-                  <li key={session.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold">{session.position}</p>
-                      <p className="text-sm text-muted-foreground">
-                        by {session.mentor.name}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-center text-sm text-muted-foreground py-4">History not found.</p>
-            )}
-          </CardContent>
-        </Card>
       </div>
-    </div>
-  )
-}
+    </>
+  );
+};
 
-export default page
+export default TrainingCenterPage;

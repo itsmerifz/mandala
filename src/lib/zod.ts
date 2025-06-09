@@ -80,5 +80,12 @@ export const assignMentorSchema = z.object({
 
 export const updatePlanSchema = z.object({
   trainingId: z.string().cuid(),
-  planContent: z.string()
+  planContent: z.string().trim().min(1, 'Plan content cannot be empty')
+})
+
+export const createTrainingSessionSchema = z.object({
+  trainingId: z.string().cuid(),
+  sessionDate: z.coerce.date(),
+  position: z.string().trim().min(3, 'Position is required'),
+  notes: z.string().optional()
 })

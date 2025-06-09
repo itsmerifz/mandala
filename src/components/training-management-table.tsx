@@ -10,6 +10,10 @@ import { ColumnDef, flexRender, getCoreRowModel, getFilteredRowModel, getPaginat
 import DataTablePagination from "./data-table-pagination"
 import { useDebounce } from "use-debounce"
 import { Input } from "./ui/input"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import { ClipboardEditIcon, FilePlusIcon, UserPlusIcon } from "lucide-react"
+import { EditTrainingPlanDialog } from "./edit-training-plan-dialog"
+import { AddTrainingSessionDialog } from "./add-training-session-dialog"
 
 type RequestWithDetails = Training & {
   student: { name: string | null, cid: string },
@@ -30,17 +34,16 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState('');
   const [debouncedGlobalFilter] = useDebounce(globalFilter, 300);
+  const [dialogState, setDialogState] = useState<{
+    type: 'assign' | 'plan' | 'session' | null;
+    request: RequestWithDetails | null
+  }>({ type: null, request: null })
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<RequestWithDetails | null>(null);
-  const openDialog = (request: RequestWithDetails) => {
-    setSelectedRequest(request)
-    setIsDialogOpen(true)
+  const openDialog = (type: 'assign' | 'plan' | 'session', request: RequestWithDetails) => {
+    setDialogState({ type, request })
   }
-
   const closeDialog = () => {
-    setIsDialogOpen(false)
-    setSelectedRequest(null)
+    setDialogState({ type: null, request: null });
   }
 
   const columns = useMemo<ColumnDef<RequestWithDetails>[]>(
@@ -93,12 +96,39 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
         cell: ({ row }) => {
           const request = row.original;
           return (
-            <div className="text-right">
-              {request.status === 'Pending' && (
-                <Button size="sm" variant='outline' onClick={() => openDialog(request)}>
-                  Assign Mentor
-                </Button>
-              )}
+            <div className="flex justify-end gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant='ghost' size="icon" className="h-8 w-8" onClick={() => openDialog('assign', request)} disabled={request.status !== 'Pending'}>
+                      <UserPlusIcon className="h-4 w-4" /><span className="sr-only">Assign Mentor</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Assign Mentor</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('plan', request)} disabled={request.status === 'Pending'}>
+                      <ClipboardEditIcon className="h-4 w-4" /><span className="sr-only">Edit Plan</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit Training Plan</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('session', request)} disabled={request.status === 'Pending'}>
+                      <FilePlusIcon className="h-4 w-4" /><span className="sr-only">Add Session</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Log Training Session</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           );
         }
@@ -176,13 +206,27 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
 
       <DataTablePagination table={table} />
 
-      {isDialogOpen && selectedRequest && (
-        <AssignMentorDialog
-          isOpen={isDialogOpen}
-          onClose={closeDialog}
-          trainingId={selectedRequest.id}
-          potentialMentors={mentors}
-        />
+      {dialogState.request && (
+        <>
+            <AssignMentorDialog
+                isOpen={dialogState.type === 'assign'}
+                onClose={closeDialog}
+                trainingId={dialogState.request.id}
+                potentialMentors={mentors}
+            />
+            <EditTrainingPlanDialog
+                isOpen={dialogState.type === 'plan'}
+                onClose={closeDialog}
+                trainingId={dialogState.request.id}
+                initialPlan={dialogState.request.trainingPlan}
+            />
+            <AddTrainingSessionDialog
+                isOpen={dialogState.type === 'session'}
+                onClose={closeDialog}
+                trainingId={dialogState.request.id}
+                studentName={dialogState.request.student.name || 'Student'}
+            />
+        </>
       )}
     </div>
   );

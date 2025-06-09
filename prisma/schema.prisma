@@ -167,6 +167,7 @@ model TrainingSession {
   trainingId    String
   mentor        User        @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
   mentorId      String
+  sessionDate   DateTime
   position      String
   notes         String?     @db.Text
   createdAt     DateTime    @default(now())
