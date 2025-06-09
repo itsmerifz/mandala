@@ -2,19 +2,23 @@ import { TrainingType } from '@root/prisma/generated'
 import { z } from 'zod'
 
 export const permissionValues = [
-  'MANAGE_WEB',
-  'MANAGE_ROSTER',
-  'MANAGE_EVENT',
-  'MANAGE_TRAINING',
-  'READ_TRAINING',
-  'READ_EVENTS',
-  'READ_ROSTER',
   'ADMINISTRATOR',
+  'MANAGE_WEBSITE',
+  'MANAGE_USERS_ROSTER',
+  'MANAGE_TRAINING',
+  'MANAGE_EVENTS',
+  'MANAGE_FACILITIES',
+  'MANAGE_COMMUNICATIONS',
+  'MANAGE_OPERATIONS',
+  'VIEW_ALL_DATA',
+  'VIEW_TRAINING_RECORDS',
+  'VIEW_EVENT_RECORDS',
+  'VIEW_ROSTER',
 ] as const
 
 export const permissionEnum = z.enum(permissionValues)
 
-export type Permission = typeof permissionEnum._type
+export type Permission = z.infer<typeof permissionEnum>
 
 export const roleFormSchema = z.object({
   name: z.string().min(1, { message: 'Role Name is required' }),

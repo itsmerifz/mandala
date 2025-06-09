@@ -40,12 +40,12 @@ const TrainingCenterPage = async () => {
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="space-y-3">
         <h1 className='text-3xl font-bold'>Training Center</h1>
         {!activeTraining && <RequestTrainingDialog />}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 mt-3">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>

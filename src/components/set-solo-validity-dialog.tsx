@@ -92,8 +92,8 @@ export const SetSoloValidityDialog = ({ isOpen, onClose, trainingId, soloDetail 
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="ghost" disabled={isPending}>Cancel</Button></DialogClose>
-            <Button type="submit" disabled={isPending || !validityDate}>
+            <DialogClose asChild><Button type="button" variant="destructive" disabled={isPending}>Cancel</Button></DialogClose>
+            <Button type="submit" variant="outline" disabled={isPending || !validityDate}>
               {isPending ? 'Saving...' : 'Save Validity'}
             </Button>
           </DialogFooter>

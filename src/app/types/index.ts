@@ -52,4 +52,5 @@ export interface Certificate {
 
 export interface EditRole extends Role {
   permissions: Permission[]
+  userCount: number
 }

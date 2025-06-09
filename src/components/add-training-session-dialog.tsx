@@ -100,7 +100,7 @@ export const AddTrainingSessionDialog = ({ isOpen, onClose, trainingId, studentN
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="ghost" disabled={isPending}>Cancel</Button></DialogClose>
+            <DialogClose asChild><Button type="button" variant="destructive" disabled={isPending}>Cancel</Button></DialogClose>
             <Button type="submit" variant="outline" disabled={isPending}>
               {isPending ? 'Logging...' : 'Log Session'}
             </Button>

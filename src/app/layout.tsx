@@ -27,7 +27,7 @@ const RootLayout = ({
         <Providers>
           {children}
           <SwitchTheme />
-          <p className="fixed bottom-2 right-2 dark:text-white *:text-black">Made with luv by 1708238</p>
+          <p className="fixed bottom-2 right-2 text-muted-foreground">Made with luv by 1708238</p>
         </Providers>
       </body>
     </html>

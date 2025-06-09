@@ -8,14 +8,18 @@ const apiSchema = z.object({
   description: z.string().min(1),
   color: z.string().min(1),
   permissions: z.array(z.enum([
-    'MANAGE_WEB',
-    'MANAGE_ROSTER',
-    'MANAGE_EVENT',
-    'MANAGE_TRAINING',
-    'READ_TRAINING',
-    'READ_EVENTS',
-    'READ_ROSTER',
     'ADMINISTRATOR',
+    'MANAGE_WEBSITE',
+    'MANAGE_USERS_ROSTER',
+    'MANAGE_TRAINING',
+    'MANAGE_EVENTS',
+    'MANAGE_FACILITIES',
+    'MANAGE_COMMUNICATIONS',
+    'MANAGE_OPERATIONS',
+    'VIEW_ALL_DATA',
+    'VIEW_TRAINING_RECORDS',
+    'VIEW_EVENT_RECORDS',
+    'VIEW_ROSTER',
   ])).min(1),
 })
 
@@ -57,13 +61,21 @@ export async function POST(request: Request) {
 export async function GET() {
   const roles = await prisma.role.findMany({
     include: {
-      permissions: true
+      permissions: true,
+      _count: {
+        select: {
+          users: true
+        }
+      }
     }
   })
   if (roles) return NextResponse.json({
     roles: roles.map(role => ({
       ...role,
-      permissions: role.permissions.map(permission => permission.permission as Permission)
+      permissions: role.permissions.map(permission => permission.permission as Permission),
+      userCount: role._count.users
     }))
   }, { status: 200 })
+
+  return NextResponse.json({ roles: [] }, { status: 204 })
 }

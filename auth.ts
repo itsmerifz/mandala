@@ -4,7 +4,7 @@ import { Provider } from "next-auth/providers";
 import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-auth/adapters";
 import { prisma } from "@/lib/prisma";
 import { PrismaClient } from "@prisma/client";
-import { AppRoleInSession, ProviderUserProfile, VATSIMData } from "./next-auth";
+import { ProviderUserProfile, VATSIMData } from "./next-auth";
 import { Prisma, Permission as PrismaPermissionEnum } from "@root/prisma/generated";
 
 const getStaffCIDList = async (): Promise<string[]> => {
@@ -71,8 +71,22 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
                   roles: { connect: { id: adminRole.id } },
                   permissionsLastUpdatedAt: new Date(),
                 }
-              });
+              })
               console.log(`Adapter: Assigned role '${adminRole.name}' to user ${newUser.id}`);
+            }
+          } else {
+            const memberRole = await tx.role.findUnique({
+              where: { name: 'Member' }
+            })
+
+            if (memberRole) {
+              await tx.user.update({
+                where: { id: newUser.id },
+                data: {
+                  roles: { connect: { id: memberRole.id } },
+                  permissionsLastUpdatedAt: new Date(),
+                }
+              })
             }
           }
           return newUser
@@ -85,11 +99,6 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
       } catch (error) {
         throw error
       }
-
-      // const createdUser = await prisma.user.create({
-      //   data: newUserInput
-      // });
-
     },
     updateUser: async ({ id, ...data }) => {
       console.log('Updating user with ID:', id, 'and data:', data);
