@@ -34,6 +34,8 @@ model User {
   trainingsAsMentor       Training[]          @relation("MentorTrainings")
   trainingSessionAsMentor TrainingSession[]   @relation("MentorSessions")
   assignedTrainings       Training[]          @relation("StaffTrainingAssignments")
+  participatedEvents      Event[]             @relation("EventParticipants")
+  createdEvents           Event[]             @relation("CreatedEvents")
 }
 
 model Certificate {
@@ -92,6 +94,13 @@ enum Permission {
   VIEW_ROSTER
 }
 
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  COMPLETED
+  CANCELLED
+}
+
 enum TrainingType {
   RATING_PROGRESSION
   SOLO_ENDORSEMENT
@@ -141,14 +150,19 @@ model Resource {
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  thumbnail   String?
-  location    String   // ICAO code
-  time        DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String      @id @default(cuid())
+  name            String
+  description     String?     @db.Text
+  bannerImageUrl  String?
+  startDateTime   DateTime
+  endDateTime     DateTime
+  status          EventStatus @default(DRAFT)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  participants    User[]      @relation("EventParticipants")
+
+  createdBy       User?       @relation("CreatedEvents", fields: [createdById], references: [id])
+  createdById     String?
 }
 
 model Training {

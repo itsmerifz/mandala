@@ -1,4 +1,4 @@
-import { MentorInputLevel, PerformanceLevel, TrainingType } from '@root/prisma/generated'
+import { MentorInputLevel, PerformanceLevel, TrainingType, EventStatus } from '@root/prisma/generated'
 import { z } from 'zod'
 
 export const permissionValues = [
@@ -130,9 +130,14 @@ export const createTemplateSchema = z.object({
 })
 
 export const eventSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().min(1),
-  thumbnail: z.string().url().optional(),
-  location: z.string().min(4).max(4), // ICAO code
-  time: z.string().datetime(),
+  name: z.string().min(3, "Event name must be at least 3 characters."),
+  description: z.string().optional(),
+  startDateTime: z.coerce.date({ required_error: "Start date is required." }),
+  endDateTime: z.coerce.date({ required_error: "End date is required." }),
+  bannerImageUrl: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
+  status: z.nativeEnum(EventStatus),
+}).refine(data => data.endDateTime > data.startDateTime, {
+    message: "End date must be after the start date.",
+    path: ["endDateTime"]
 });
+
