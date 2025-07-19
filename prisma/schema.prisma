@@ -98,6 +98,19 @@ enum TrainingType {
   RECURRENT_TRAINING
 }
 
+enum MentorInputLevel {
+  CONSTANT
+  RARE
+  NO_INPUT
+  NOT_COVERED
+}
+
+enum PerformanceLevel {
+  BELOW
+  AT
+  ABOVE
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -125,6 +138,17 @@ model Resource {
   description String
   link        String
   isStaffOnly Boolean
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  thumbnail   String?
+  location    String   // ICAO code
+  time        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Training {
@@ -166,15 +190,66 @@ model TrainingSoloDetail {
 }
 
 model TrainingSession {
-  id            String      @id @default(cuid())
-  training      Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  trainingId    String
-  mentor        User        @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
-  mentorId      String
-  sessionDate   DateTime
-  position      String
-  notes         String?     @db.Text
-  createdAt     DateTime    @default(now())
+  id                String                    @id @default(cuid())
+  training          Training                  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  trainingId        String
+  mentor            User                      @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
+  mentorId          String
+  sessionDate       DateTime
+  position          String
+  notes             String?                   @db.Text
+  competencyResults SessionCompetencyResult[]
+  createdAt         DateTime                  @default(now())
 
   @@index([trainingId])
+}
+
+model CompetencyTemplate {
+  id             String  @id @default(cuid())
+  name           String  @unique
+  targetRating   String
+  targetPosition String
+
+  sections       CompetencySection[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model CompetencySection {
+  id          String             @id @default(cuid())
+  template    CompetencyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId  String
+
+  order       Int
+  title       String
+  items       CompetencyItem[]
+
+  @@index([templateId])
+}
+
+model CompetencyItem {
+  id                String                   @id @default(cuid())
+  section           CompetencySection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId         String
+  
+  order             Int
+  competency        String
+  results           SessionCompetencyResult[]
+  
+  @@index([sectionId])
+}
+
+model SessionCompetencyResult {
+  id                 String           @id @default(cuid())
+  trainingSession    TrainingSession  @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
+  trainingSessionId  String
+  
+  competencyItem     CompetencyItem   @relation(fields: [competencyItemId], references: [id], onDelete: Cascade)
+  competencyItemId   String
+  
+  mentorInput        MentorInputLevel
+  performanceLevel   PerformanceLevel
+  notes              String?
+  
+  @@unique([trainingSessionId, competencyItemId])
 }

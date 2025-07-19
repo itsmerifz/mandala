@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/prisma"
-import { assignMentorSchema, createTrainingSchema, createTrainingSessionSchema, setSoloValiditySchema, updatePlanSchema } from "@/lib/zod"
+import { assignMentorSchema, createTemplateSchema, createTrainingSchema, createTrainingSessionSchema, setSoloValiditySchema, updatePlanSchema } from "@/lib/zod"
 import { auth } from "@root/auth"
 import { Permission } from "@root/prisma/generated"
 import { revalidatePath } from "next/cache"
@@ -155,12 +155,14 @@ const createTrainingSessionAction = async (formData: FormData) => {
     trainingId: formData.get('trainingId'),
     sessionDate: formData.get('sessionDate'),
     position: formData.get('position'),
-    notes: formData.get('notes')
+    notes: formData.get('notes'),
+    competencyResults: formData.get("competencyResults")
   })
 
   if (!parsed.success) return { success: false, error: "Invalid Data" }
 
-  const { trainingId, ...sessionData } = parsed.data
+  const { trainingId, competencyResults, ...sessionData } = parsed.data
+
 
   try {
     const training = await prisma.training.findFirst({
@@ -168,12 +170,24 @@ const createTrainingSessionAction = async (formData: FormData) => {
     })
 
     if (!training) return { success: false, error: "You aren't student mentor" }
-    await prisma.trainingSession.create({
-      data: {
-        trainingId,
-        mentorId,
-        ...sessionData,
-      },
+
+    await prisma.$transaction(async tx => {
+      const newSession = await tx.trainingSession.create({
+        data: {
+          trainingId,
+          mentorId,
+          sessionDate: sessionData.sessionDate,
+          position: sessionData.position,
+          notes: sessionData.notes
+        },
+      })
+
+      await tx.sessionCompetencyResult.createMany({
+        data: competencyResults.map(result => ({
+          trainingSessionId: newSession.id,
+          ...result
+        }))
+      })
     })
 
     revalidatePath('/training')
@@ -227,4 +241,110 @@ const setSoloValidityAction = async (formData: FormData) => {
   }
 }
 
-export { createTrainingAction, assignMentorAction, updateTrainingPlanAction, createTrainingSessionAction, setSoloValidityAction } 
+const getCompetencyTemplateAction = async (templateName: string) => {
+  try {
+    const template = await prisma.competencyTemplate.findUnique({
+      where: { name: templateName },
+      include: {
+        sections: {
+          orderBy: { order: 'asc' },
+          include: {
+            items: {
+              orderBy: { order: 'asc' },
+            },
+          },
+        },
+      },
+    });
+    if (!template) return { success: false, error: "Template not found." };
+    return { success: true, data: template };
+  } catch (error) {
+    return { success: false, error: `Failed to fetch competency template, Error: ${error}` };
+  }
+}
+
+const getSessionReportAction = async (sessionId: string) => {
+  try {
+    const sessionReport = await prisma.trainingSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        mentor: { select: { name: true } },
+        training: { select: { studentId: true } },
+        competencyResults: {
+          orderBy: { competencyItem: { order: 'asc' } },
+          include: {
+            competencyItem: {
+              include: {
+                section: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!sessionReport) return { success: false, error: "Session report not found." };
+
+    const sections: Record<string, unknown[]> = {};
+    sessionReport.competencyResults.forEach(result => {
+      const sectionTitle = result.competencyItem.section.title;
+      if (!sections[sectionTitle]) {
+        sections[sectionTitle] = [];
+      }
+      sections[sectionTitle].push(result);
+    })
+
+    return { success: true, data: { ...sessionReport, sections } };
+  } catch (error) {
+    return { success: false, error: `Failed to fetch session report, Error: ${error}` };
+  }
+}
+
+const createTemplateAction = async (data: unknown) => {
+  const session = await auth();
+  if (!session?.user?.appPermissions?.includes(Permission.MANAGE_TRAINING)) {
+    return { success: false, error: "Unauthorized." };
+  }
+
+  const parsed = createTemplateSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid template data.", issues: parsed.error.flatten() };
+  }
+
+  const { name, targetPosition, sections } = parsed.data;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const newTemplate = await tx.competencyTemplate.create({
+        data: { name, targetPosition, targetRating: "" }, // Provide a default or actual value for targetRating
+      })
+
+      for (const [sectionIndex, section] of sections.entries()) {
+        const newSection = await tx.competencySection.create({
+          data: {
+            templateId: newTemplate.id,
+            title: section.title,
+            order: sectionIndex + 1,
+          },
+        });
+
+        await tx.competencyItem.createMany({
+          data: section.items.map((item, itemIndex) => ({
+            sectionId: newSection.id,
+            competency: item.competency,
+            order: itemIndex + 1,
+          })),
+        });
+      }
+    });
+
+    revalidatePath('/settings');
+    return { success: true, message: "New competency template created successfully." };
+
+  } catch (error) {
+    console.error("Error creating template:", error);
+    return { success: false, error: "Failed to create template due to a server error." };
+  }
+}
+
+export { createTrainingAction, assignMentorAction, updateTrainingPlanAction, createTrainingSessionAction, setSoloValidityAction, getCompetencyTemplateAction, getSessionReportAction, createTemplateAction }

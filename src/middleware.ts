@@ -3,9 +3,9 @@ import { getToken } from "next-auth/jwt";
 import { Permission as PrismaPermissionEnum } from "@root/prisma/generated";
 
 const protectedRoutesConfig: Record<string, PrismaPermissionEnum[]> = {
-  "/roster/manage": [PrismaPermissionEnum.MANAGE_ROSTER],
-  "/settings": [PrismaPermissionEnum.MANAGE_WEB, PrismaPermissionEnum.ADMINISTRATOR],
-  "/events/manage": [PrismaPermissionEnum.MANAGE_EVENT],
+  "/roster/manage": [PrismaPermissionEnum.MANAGE_USERS_ROSTER],
+  "/settings": [PrismaPermissionEnum.MANAGE_WEBSITE, PrismaPermissionEnum.ADMINISTRATOR],
+  "/events/manage": [PrismaPermissionEnum.MANAGE_EVENTS],
   "/training/manage": [PrismaPermissionEnum.MANAGE_TRAINING],
 }
 

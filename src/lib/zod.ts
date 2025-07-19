@@ -1,4 +1,4 @@
-import { TrainingType } from '@root/prisma/generated'
+import { MentorInputLevel, PerformanceLevel, TrainingType } from '@root/prisma/generated'
 import { z } from 'zod'
 
 export const permissionValues = [
@@ -87,14 +87,52 @@ export const updatePlanSchema = z.object({
   planContent: z.string().trim().min(1, 'Plan content cannot be empty')
 })
 
+export const setSoloValiditySchema = z.object({
+  trainingId: z.string().cuid(),
+  validUntil: z.coerce.date({ required_error: 'Validity date is required' })
+})
+
+export const competencyResultSchema = z.object({
+  competencyItemId: z.string().cuid(),
+  mentorInput: z.nativeEnum(MentorInputLevel),
+  performanceLevel: z.nativeEnum(PerformanceLevel),
+  notes: z.string().optional()
+})
+
 export const createTrainingSessionSchema = z.object({
   trainingId: z.string().cuid(),
   sessionDate: z.coerce.date(),
   position: z.string().trim().min(3, 'Position is required'),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  competencyResults: z.string().transform((str, ctx) => {
+    try {
+      return z.array(competencyResultSchema).parse(JSON.parse(str))
+    } catch (e) {
+      ctx.addIssue({ code: "custom", message: `Invalid competency format, Error: ${e}` })
+      return z.NEVER
+    }
+  })
 })
 
-export const setSoloValiditySchema = z.object({
-  trainingId: z.string().cuid(),
-  validUntil: z.coerce.date({ required_error: 'Validity date is required'})
+export const competencyItemSchema = z.object({
+  competency: z.string().min(3, "Competency description is required."),
 })
+
+export const competencySectionSchema = z.object({
+  title: z.string().min(3, "Section title is required."),
+  items: z.array(competencyItemSchema).min(1, "Each section must have at least one competency item."),
+})
+
+export const createTemplateSchema = z.object({
+  name: z.string().min(3, "Template name is required."),
+  targetPosition: z.string().min(2, "Target position is required."),
+  sections: z.array(competencySectionSchema).min(1, "Template must have at least one section."),
+})
+
+export const eventSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1),
+  thumbnail: z.string().url().optional(),
+  location: z.string().min(4).max(4), // ICAO code
+  time: z.string().datetime(),
+});

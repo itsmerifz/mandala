@@ -34,7 +34,7 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
     createUser: async (dataFromProviderProfile: AdapterUser) => {
       const profile = dataFromProviderProfile as ProviderUserProfile
       console.log('Creating user:', JSON.stringify(profile, null, 2));
-
+// 
       if (!profile.cid || !profile.name || !profile.email) {
         throw new Error("Adapter: Missing required fields (cid, name, or email) for creating user.");
       }
@@ -244,7 +244,7 @@ const providers: Provider[] = [
       }
     },
     userinfo: process.env.NODE_ENV === 'development' ? `${process.env.AUTH_OAUTH_URL_DEV}/api/user` : `${process.env.AUTH_OAUTH_URL}/api/user`,
-    profile(vatsimProfile: Profile): Promise<ProviderUserProfile> {
+    profile(vatsimProfile: Profile) {
       const rawData = vatsimProfile.data
 
       if (!rawData || !rawData.cid || !rawData.personal || !rawData.vatsim || !rawData.vatsim.rating) {

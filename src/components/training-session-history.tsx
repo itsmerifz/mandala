@@ -4,7 +4,7 @@ import React, { useState } from 'react'
 import { Button } from './ui/button'
 import type { TrainingSession } from '@root/prisma/generated/client'
 import { format } from 'date-fns'
-import SessionDetailsDialog from './session-details-dialog'
+import SessionReportDialog from './session-report-dialog';
 
 // Define the type for the props this component will receive
 export type SessionHistoryWithMentor = TrainingSession & {
@@ -16,8 +16,7 @@ interface TrainingSessionHistoryProps {
 }
 
 export const TrainingSessionHistory = ({ sessions }: TrainingSessionHistoryProps) => {
-  const [selectedSession, setSelectedSession] = useState<SessionHistoryWithMentor | null>(null)
-
+  const [viewingSessionId, setViewingSessionId] = useState<string | null>(null)
   if (sessions.length === 0) {
     return (
       <p className="text-center text-sm text-muted-foreground py-4">
@@ -43,7 +42,7 @@ export const TrainingSessionHistory = ({ sessions }: TrainingSessionHistoryProps
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSelectedSession(session)}
+              onClick={() => setViewingSessionId(session.id)}
             >
               View Details
             </Button>
@@ -51,10 +50,10 @@ export const TrainingSessionHistory = ({ sessions }: TrainingSessionHistoryProps
         ))}
       </div>
 
-      <SessionDetailsDialog
-        isOpen={!!selectedSession}
-        onClose={() => setSelectedSession(null)}
-        session={selectedSession}
+      <SessionReportDialog
+        isOpen={!!viewingSessionId}
+        onClose={() => setViewingSessionId(null)}
+        sessionId={viewingSessionId || ''}
       />
     </>
   );

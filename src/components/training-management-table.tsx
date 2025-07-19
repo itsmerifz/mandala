@@ -11,10 +11,11 @@ import DataTablePagination from "./data-table-pagination"
 import { useDebounce } from "use-debounce"
 import { Input } from "./ui/input"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
-import { CalendarCheckIcon, ClipboardEditIcon, FilePlusIcon, UserPlusIcon } from "lucide-react"
+import { CalendarClockIcon, ClipboardEditIcon, FilePlusIcon, UserPlusIcon } from "lucide-react"
 import { EditTrainingPlanDialog } from "./edit-training-plan-dialog"
 import { AddTrainingSessionDialog } from "./add-training-session-dialog"
 import { SetSoloValidityDialog } from "./set-solo-validity-dialog"
+import LogSessionWithReportDialog from "./log-session-with-report-dialog"
 
 type RequestWithDetails = Training & {
   student: { name: string | null, cid: string },
@@ -40,7 +41,7 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
     request: RequestWithDetails | null
   }>({ type: null, request: null })
 
-  const openDialog = (type: 'assign' | 'plan' | 'session' | 'validity', request: RequestWithDetails) => {
+  const openDialog = (type: typeof dialogState.type, request: RequestWithDetails) => {
     setDialogState({ type, request })
   }
   const closeDialog = () => {
@@ -77,14 +78,18 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ getValue }) => {
-          const status = getValue<string>();
-          return (
-            <Badge variant={status === 'Pending' ? 'destructive' : 'default'}>
-              {status}
-            </Badge>
-          );
-        },
+        cell: ({ row }) => {
+          const { status, type, soloDetail } = row.original;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          // Check for expired solo
+          if (type === 'SOLO_ENDORSEMENT' && soloDetail?.validUntil && new Date(soloDetail.validUntil) < today) {
+            return <Badge variant="destructive">Solo Expired</Badge>;
+          }
+
+          return <Badge variant={status === 'Pending' ? 'outline' : 'default'}>{status}</Badge>;
+        }
       },
       {
         accessorKey: 'mentor.name',
@@ -97,7 +102,7 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
         cell: ({ row }) => {
           const request = row.original;
           return (
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end gap-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -119,24 +124,20 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
                     <p>Edit Training Plan</p>
                   </TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('session', request)} disabled={request.status === 'Pending'}>
-                      <FilePlusIcon className="h-4 w-4" /><span className="sr-only">Add Session</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Log Training Session</p>
-                  </TooltipContent>
-                </Tooltip>
-                {request.type === 'SOLO_ENDORSEMENT' && (
+                {request.status === 'In Progress' && (
+                  <Tooltip>
+                    <TooltipTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('session', request)}><FilePlusIcon className="h-4 w-4" /></Button></TooltipTrigger>
+                    <TooltipContent><p>Log New Session Report</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {request.type === 'SOLO_ENDORSEMENT' && request.status === 'In Progress' && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('validity', request)} disabled={request.status === 'Pending'}>
-                        <CalendarCheckIcon className="h-4 w-4" /><span className="sr-only">Set Validity</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openDialog('validity', request)}>
+                        <CalendarClockIcon className="h-4 w-4" /><span className="sr-only">Set/Extend Validity</span>
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Set Solo Validity</p></TooltipContent>
+                    <TooltipContent><p>Set/Extend Solo Validity</p></TooltipContent>
                   </Tooltip>
                 )}
               </TooltipProvider>
@@ -242,6 +243,16 @@ const TrainingManagementTable: React.FC<TrainingManagementTableProps> = ({ reque
             onClose={closeDialog}
             trainingId={dialogState.request.id}
             soloDetail={dialogState.request.soloDetail}
+          />
+
+          <LogSessionWithReportDialog
+            isOpen={dialogState.type === 'session'}
+            onClose={closeDialog}
+            trainingId={dialogState.request.id}
+            studentName={dialogState.request.student.name || 'Student'}
+            // CATATAN: Anda perlu menentukan template mana yang akan digunakan.
+            // Untuk sekarang kita hard-code, idealnya ini dinamis.
+            templateName="TWR Student Checklist"
           />
         </>
       )}
