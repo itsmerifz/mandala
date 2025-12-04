@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import SwitchTheme from "@/components/switch-theme";
 import Providers from "@/components/providers";
 
 const jakartaSans = Plus_Jakarta_Sans({
@@ -26,8 +25,6 @@ const RootLayout = ({
       >
         <Providers>
           {children}
-          <SwitchTheme />
-          <p className="fixed bottom-2 right-2 text-muted-foreground">Made with luv by 1708238</p>
         </Providers>
       </body>
     </html>

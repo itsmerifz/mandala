@@ -30,6 +30,9 @@ interface ProviderUserProfile {
   ratingId: number | null
   ratingShort: string | null
   ratingLong: string | null
+  region: string | null
+  division: string | null
+  subdivision: string | null
 }
 
 interface AppRoleInSession {
@@ -52,6 +55,9 @@ declare module "next-auth" {
     ratingId: number
     ratingShort: string
     ratingLong: string
+    region: string
+    division: string
+    subdivision: string
 
     appRoles?: AppRoleInSession[]
     appPermissions?: PrismaPermissionEnum[]

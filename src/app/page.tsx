@@ -1,21 +1,22 @@
-import { Button } from "@/components/ui/button";
-import { redirect } from "next/navigation";
-import { auth } from "@root/auth";
-import SignInAction from "./actions/signin";
+"use client"
+import { signIn } from "next-auth/react"
+import { useState } from "react"
 
-export default async function Home() {
-  const session = await auth();
+export default function LoginPage() {
+  const [isLoading, setIsLoading] = useState(false)
 
-  if (session?.user) redirect("/main");
+  const handleLogin = async () => {
+    setIsLoading(true)
+    signIn("vatsim", { redirectTo: "/dashboard" })
+  }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-24">
-      <div className="dark:border-white *:border-black border p-48 w-[800px] flex flex-col items-center justify-center rounded-3xl gap-3">
-        <h1 className="text-6xl font-thin">Mandala</h1>
-        <form action={ SignInAction }>
-          <Button className="mt-4 hover:cursor-pointer">Sign In with VATSIM SSO</Button>
-        </form>
+    <div className="min-h-screen bg-base-200 flex items-center justify-center">
+      <div className="card min-w-96 min-h-96 gap-3">
+        <h1 className="text-5xl font-bold text-transparent bg-linear-to-r from-primary to-secondary bg-clip-text">Mandala IDvACC</h1>
+        <p className="text-center">Sign in to continue</p>
+        <button className="btn-primary btn btn-outline btn-lg" onClick={handleLogin} disabled={isLoading}>{isLoading ? <span className="loading loading-spinner loading-lg"></span> : null} {isLoading ? "Processing..." : "Login With VATSIM SSO"}</button>
       </div>
     </div>
-  );
+  )
 }

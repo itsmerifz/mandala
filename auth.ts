@@ -1,40 +1,39 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import NextAuth, { NextAuthConfig, Profile } from "next-auth"
-import { Provider } from "next-auth/providers";
-import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-auth/adapters";
-import { prisma } from "@/lib/prisma";
-import { PrismaClient } from "@prisma/client";
-import { ProviderUserProfile, VATSIMData } from "./next-auth";
-import { Prisma, Permission as PrismaPermissionEnum } from "@root/prisma/generated";
+import { Provider } from "next-auth/providers"
+import { AdapterAccount, AdapterSession, AdapterUser, type Adapter } from "next-auth/adapters"
+import { prisma } from "@/lib/prisma"
+import { ProviderUserProfile } from "./next-auth"
+import { Prisma } from "@root/prisma/generated"
 
-const getStaffCIDList = async (): Promise<string[]> => {
-  if (process.env.NODE_ENV === 'development') return ['10000007', '10000003']
-  else {
-    try {
-      const response = await fetch('http://hq.vat-sea.com/api/vacc/IDN/staff', {
-        next: { revalidate: 3600 }
-      })
+// const getStaffCIDList = async (): Promise<string[]> => {
+//   if (process.env.NODE_ENV === 'development') return ['10000007', '10000003']
+//   else {
+//     try {
+//       const response = await fetch('http://hq.vat-sea.com/api/vacc/IDN/staff', {
+//         next: { revalidate: 3600 }
+//       })
 
-      if (!response.ok) throw new Error(`Failed to get data, Error: ${response.status}`)
-      const staffData: { cid: number }[] = await response.json()
-      if (Array.isArray(staffData)) {
-        const cidList = staffData.map(staff => staff.cid.toString())
-        return cidList
-      }
-      console.warn("API didn't get staff CID")
-      return []
-    } catch {
-      return []
-    }
-  }
-}
+//       if (!response.ok) throw new Error(`Failed to get data, Error: ${response.status}`)
+//       const staffData: { cid: number }[] = await response.json()
+//       if (Array.isArray(staffData)) {
+//         const cidList = staffData.map(staff => staff.cid.toString())
+//         return cidList
+//       }
+//       console.warn("API didn't get staff CID")
+//       return []
+//     } catch {
+//       return []
+//     }
+//   }
+// }
 
-const CustomAdapter = (prisma: PrismaClient): Adapter => {
+const CustomAdapter = (prisma: any): Adapter => {
   return {
     createUser: async (dataFromProviderProfile: AdapterUser) => {
       const profile = dataFromProviderProfile as ProviderUserProfile
       console.log('Creating user:', JSON.stringify(profile, null, 2));
-// 
+      // 
       if (!profile.cid || !profile.name || !profile.email) {
         throw new Error("Adapter: Missing required fields (cid, name, or email) for creating user.");
       }
@@ -47,58 +46,67 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         cid: profile.cid,
         name: profile.name,
         email: profile.email,
+        emailVerified: new Date(),
         ratingId: profile.ratingId,
         ratingShort: profile.ratingShort,
         ratingLong: profile.ratingLong,
+        region: profile.region,
+        division: profile.division,
+        subdivision: profile.subdivision,
+        rosterStatus: 'ACTIVE'
       };
 
-      try {
-        const createdUser = await prisma.$transaction(async tx => {
-          const newUser = await tx.user.create({
-            data: newUserInput
-          })
+      // try {
+      //   const createdUser = await prisma.$transaction(async (tx: any) => {
+      //     const newUser = await tx.user.create({
+      //       data: newUserInput
+      //     })
 
-          const staffList = await getStaffCIDList()
-          if (staffList.includes(newUser.cid)) {
-            const adminRole = await tx.role.findFirst({
-              where: { permissions: { some: { permission: 'ADMINISTRATOR' } } }
-            })
+      //     const staffList = await getStaffCIDList()
+      //     if (staffList.includes(newUser.cid)) {
+      //       const adminRole = await tx.role.findFirst({
+      //         where: { permissions: { some: { permission: 'ADMINISTRATOR' } } }
+      //       })
 
-            if (adminRole) {
-              await tx.user.update({
-                where: { id: newUser.id },
-                data: {
-                  roles: { connect: { id: adminRole.id } },
-                  permissionsLastUpdatedAt: new Date(),
-                }
-              })
-              console.log(`Adapter: Assigned role '${adminRole.name}' to user ${newUser.id}`);
-            }
-          } else {
-            const memberRole = await tx.role.findUnique({
-              where: { name: 'Member' }
-            })
+      //       if (adminRole) {
+      //         await tx.user.update({
+      //           where: { id: newUser.id },
+      //           data: {
+      //             roles: { connect: { id: adminRole.id } },
+      //             permissionsLastUpdatedAt: new Date(),
+      //           }
+      //         })
+      //         console.log(`Adapter: Assigned role '${adminRole.name}' to user ${newUser.id}`);
+      //       }
+      //     } else {
+      //       const memberRole = await tx.role.findUnique({
+      //         where: { name: 'Member' }
+      //       })
 
-            if (memberRole) {
-              await tx.user.update({
-                where: { id: newUser.id },
-                data: {
-                  roles: { connect: { id: memberRole.id } },
-                  permissionsLastUpdatedAt: new Date(),
-                }
-              })
-            }
-          }
-          return newUser
-        })
-        console.log('Adapter: User created in DB:', JSON.stringify(createdUser, null, 2));
-        return {
-          ...createdUser,
-          emailVerified: true,
-        } as any;
-      } catch (error) {
-        throw error
-      }
+      //       if (memberRole) {
+      //         await tx.user.update({
+      //           where: { id: newUser.id },
+      //           data: {
+      //             roles: { connect: { id: memberRole.id } },
+      //             permissionsLastUpdatedAt: new Date(),
+      //           }
+      //         })
+      //       }
+      //     }
+      //     return newUser
+      //   })
+      //   console.log('Adapter: User created in DB:', JSON.stringify(createdUser, null, 2));
+      //   return {
+      //     ...createdUser,
+      //     emailVerified: true,
+      //   } as any;
+      // } catch (error) {
+      //   throw error
+      // }
+      const newUser = await prisma.user.create({
+        data: newUserInput
+      })
+      return newUser
     },
     updateUser: async ({ id, ...data }) => {
       console.log('Updating user with ID:', id, 'and data:', data);
@@ -168,8 +176,8 @@ const CustomAdapter = (prisma: PrismaClient): Adapter => {
         type: data.type,
         provider: data.provider,
         providerAccountId: data.providerAccountId,
-        accessToken: data.access_token as string ?? data.accessToken,
-        refreshToken: data.refresh_token as string ?? data.refreshToken
+        access_token: data.access_token as string ?? data.access_token,
+        refresh_token: data.refresh_token as string ?? data.refresh_token
       };
 
       Object.keys(dataForPrisma).forEach(key => {
@@ -246,6 +254,7 @@ const providers: Provider[] = [
     userinfo: process.env.NODE_ENV === 'development' ? `${process.env.AUTH_OAUTH_URL_DEV}/api/user` : `${process.env.AUTH_OAUTH_URL}/api/user`,
     profile(vatsimProfile: Profile) {
       const rawData = vatsimProfile.data
+      console.log("VATSIM Profile Raw:", JSON.stringify(rawData, null, 2));
 
       if (!rawData || !rawData.cid || !rawData.personal || !rawData.vatsim || !rawData.vatsim.rating) {
         throw new Error("VATSIM profile data is incomplete or not in the expected format.");
@@ -257,12 +266,13 @@ const providers: Provider[] = [
         name: rawData.personal.name_full,
         emailVerified: null,
 
-
         cid: rawData.cid,
         ratingId: rawData.vatsim.rating.id,
         ratingShort: rawData.vatsim.rating.short,
         ratingLong: rawData.vatsim.rating.long,
-        rawVatsimPayload: rawData,
+        region: rawData.vatsim.region?.name as string,
+        division: rawData.vatsim.division?.name as string,
+        subdivision: rawData.vatsim.subdivision?.name as string,
       };
     }
   }
@@ -270,85 +280,109 @@ const providers: Provider[] = [
 
 export const authOptions: NextAuthConfig = {
   providers,
-  adapter: CustomAdapter(prisma as unknown as PrismaClient),
+  adapter: CustomAdapter(prisma),
   secret: process.env.AUTH_SECRET,
   pages: {
     signIn: "/",
   },
   callbacks: {
-    async jwt({ token, user, account, profile }) {
-      if (account && user) {
-        token.userIdDb = user.id
-        token.cid = (user as any).cid
+    async jwt({ token, user, trigger, session }) {
+      // if (account && user) {
+      //   token.userIdDb = user.id
+      //   token.cid = (user as any).cid
 
-        if (profile?.data) {
-          token.rawVatsimProfileData = profile.data as VATSIMData;
-        }
+      //   if (profile?.data) {
+      //     token.rawVatsimProfileData = profile.data as VATSIMData;
+      //   }
+      // }
+
+      if (user) {
+        const u = user as any
+        token.userIdDb = u.id
+        token.cid = u.cid
+        token.ratingId = u.ratingId
+        token.ratingShort = u.ratingShort
+        token.ratingLong = u.ratingLong
+        token.division = u.division
       }
 
-      if (token.userIdDb) {
-        let shouldReFetchPermissions = !token.appPermissions
-
-        if (!shouldReFetchPermissions) {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.userIdDb as string },
-            select: { permissionsLastUpdatedAt: true }
-          });
-          const dbTimestamp = dbUser?.permissionsLastUpdatedAt;
-          const tokenTimestamp = token.permissionsLastUpdatedAt ? new Date(token.permissionsLastUpdatedAt as string) : null;
-          if (dbTimestamp && (!tokenTimestamp || dbTimestamp.getTime() > tokenTimestamp.getTime())) {
-            shouldReFetchPermissions = true;
-          }
-        }
-
-        if (shouldReFetchPermissions) {
-          const userWithRolesAndPermissions = await prisma.user.findUnique({
-            where: { id: token.userIdDb as string },
-            include: {
-              roles: { include: { permissions: true } },
-            },
-          });
-
-          if (userWithRolesAndPermissions) {
-            const appPermissionsSet = new Set<PrismaPermissionEnum>();
-            userWithRolesAndPermissions.roles.forEach(role => {
-              role.permissions.forEach(p => appPermissionsSet.add(p.permission));
-            });
-            token.appPermissions = Array.from(appPermissionsSet);
-            token.permissionsLastUpdatedAt = userWithRolesAndPermissions.permissionsLastUpdatedAt?.toISOString() ?? null;
-          }
-        }
+      // Update session manual (jika perlu update data tanpa login ulang)
+      if (trigger === "update" && session) {
+        return { ...token, ...session }
       }
+
+      // if (token.userIdDb) {
+      // let shouldReFetchPermissions = !token.appPermissions
+
+      // if (!shouldReFetchPermissions) {
+      //   const dbUser = await prisma.user.findUnique({
+      //     where: { id: token.userIdDb as string },
+      //     select: { permissionsLastUpdatedAt: true }
+      //   });
+      //   const dbTimestamp = dbUser?.permissionsLastUpdatedAt;
+      //   const tokenTimestamp = token.permissionsLastUpdatedAt ? new Date(token.permissionsLastUpdatedAt as string) : null;
+      //   if (dbTimestamp && (!tokenTimestamp || dbTimestamp.getTime() > tokenTimestamp.getTime())) {
+      //     shouldReFetchPermissions = true;
+      //   }
+      // }
+
+      // if (shouldReFetchPermissions) {
+      //   const userWithRolesAndPermissions = await prisma.user.findUnique({
+      //     where: { id: token.userIdDb as string },
+      //     include: {
+      //       roles: { include: { permissions: true } },
+      //     },
+      //   });
+
+      //   if (userWithRolesAndPermissions) {
+      //     const appPermissionsSet = new Set<PrismaPermissionEnum>();
+      //     userWithRolesAndPermissions.roles.forEach(role => {
+      //       role.permissions.forEach(p => appPermissionsSet.add(p.permission));
+      //     });
+      //     token.appPermissions = Array.from(appPermissionsSet);
+      //     token.permissionsLastUpdatedAt = userWithRolesAndPermissions.permissionsLastUpdatedAt?.toISOString() ?? null;
+      //   }
+      // }
+      // }
       return token;
     },
     async session({ session, token }) {
-      if (token.userIdDb && session.user) {
+      // if (token.userIdDb && session.user) {
+      //   session.user.id = token.userIdDb as string
+      //   session.user.cid = token.cid as string
+      //   session.user.appPermissions = token.appPermissions
+
+      //   if (token.rawVatsimProfileData) {
+      //     const vData = token.rawVatsimProfileData
+      //     session.user.name = vData.personal.name_full
+      //     session.user.email = vData.personal.email
+      //     session.user.vatsimPersonal = vData.personal
+      //     session.user.vatsimDetails = vData.vatsim
+      //     session.user.ratingId = vData.vatsim.rating.id
+      //     session.user.ratingShort = vData.vatsim.rating.short
+      //     session.user.ratingLong = vData.vatsim.rating.long
+      //   } else {
+      //     const dbUser = await prisma.user.findUnique({
+      //       where: { id: token.userIdDb as string }
+      //     })
+
+      //     if (dbUser) {
+      //       session.user.name = dbUser.name as string;
+      //       session.user.email = dbUser.email as string;
+      //       session.user.ratingId = dbUser.ratingId;
+      //       session.user.ratingShort = dbUser.ratingShort as string;
+      //       session.user.ratingLong = dbUser.ratingLong as string;
+      //     }
+      //   }
+      if (token) {
         session.user.id = token.userIdDb as string
         session.user.cid = token.cid as string
-        session.user.appPermissions = token.appPermissions
 
-        if (token.rawVatsimProfileData) {
-          const vData = token.rawVatsimProfileData
-          session.user.name = vData.personal.name_full
-          session.user.email = vData.personal.email
-          session.user.vatsimPersonal = vData.personal
-          session.user.vatsimDetails = vData.vatsim
-          session.user.ratingId = vData.vatsim.rating.id
-          session.user.ratingShort = vData.vatsim.rating.short
-          session.user.ratingLong = vData.vatsim.rating.long
-        } else {
-          const dbUser = await prisma.user.findUnique({
-            where: { id: token.userIdDb as string }
-          })
-
-          if (dbUser) {
-            session.user.name = dbUser.name;
-            session.user.email = dbUser.email;
-            session.user.ratingId = dbUser.ratingId;
-            session.user.ratingShort = dbUser.ratingShort;
-            session.user.ratingLong = dbUser.ratingLong;
-          }
-        }
+        // Custom fields ke frontend
+        session.user.ratingId = token.ratingId as number
+        session.user.ratingShort = token.ratingShort as string
+        session.user.ratingLong = token.ratingLong as string
+        session.user.division = token.division as string
       }
       return session;
     },

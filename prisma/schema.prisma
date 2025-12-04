@@ -14,110 +14,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ==========================================
+// 1. AUTH.JS MODELS (NextAuth v5 Standard)
+// ==========================================
+
 model User {
-  id                       String            @id @default(cuid())
-  cid                      String            @unique
-  name                     String
-  email                    String            @unique
-  ratingId                 Int
-  ratingShort              String
-  ratingLong               String
-  accounts                 Account[]
-  sessions                 Session[]
-  roles                    Role[]            @relation("UserRole")
-  userCertificates         UserCertificate[]
-  createdAt                DateTime          @default(now())
-  updatedAt                DateTime          @updatedAt
-  permissionsLastUpdatedAt DateTime?
-
-  trainingsAsStudent      Training[]          @relation("StudentTrainings")
-  trainingsAsMentor       Training[]          @relation("MentorTrainings")
-  trainingSessionAsMentor TrainingSession[]   @relation("MentorSessions")
-  assignedTrainings       Training[]          @relation("StaffTrainingAssignments")
-  participatedEvents      Event[]             @relation("EventParticipants")
-  createdEvents           Event[]             @relation("CreatedEvents")
-}
-
-model Certificate {
-  id              String            @id @default(cuid())
-  code            String            @unique
-  color           String
-  name            String
-  UserCertificate UserCertificate[]
-}
-
-model UserCertificate {
   id            String    @id @default(cuid())
-  userId        String
-  certificateId String
-  isOnTraining  Boolean   @default(false)
-  notes         String?
-  issuedAt      DateTime  @default(now())
-  upgradedAt    DateTime?
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime? // Auth.js menggunakan DateTime, bukan Boolean
+  image         String?
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  // --- VATSIM Custom Fields ---
+  cid          String       @unique
+  ratingId     Int          @default(1) // 1
+  ratingShort  String? // "OBS"
+  ratingLong   String?
+  region       String?
+  division     String?
+  subdivision  String?
+  rosterStatus RosterStatus @default(VISITOR)
+  joinDate     DateTime     @default(now())
 
-  @@unique([userId, certificateId])
-}
+  // --- Relations ---
+  accounts Account[]
+  sessions Session[]
 
-model Role {
-  id          String           @id @default(cuid())
-  name        String           @unique
-  description String?
-  color       String?
-  users       User[]           @relation("UserRole")
-  permissions RolePermission[]
-}
+  // Training & Roster Relations
+  trainingsAsStudent Training[]        @relation("StudentTrainings")
+  trainingsAsMentor  Training[]        @relation("MentorTrainings")
+  trainingSessions   TrainingSession[] @relation("MentorSessions")
+  certificates       UserCertificate[]
+  issuedCertificates UserCertificate[] @relation("Issuer")
 
-model RolePermission {
-  id         String     @id @default(cuid())
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  roleId     String
-  permission Permission
+  // Exam Relations
+  examSubmissions ExamSubmission[]
+  courseProgress  CourseProgress[]
 
-  @@unique([roleId, permission])
-}
-
-enum Permission {
-  ADMINISTRATOR
-  MANAGE_WEBSITE
-  MANAGE_USERS_ROSTER
-  MANAGE_TRAINING
-  MANAGE_EVENTS
-  MANAGE_FACILITIES
-  MANAGE_COMMUNICATIONS
-  MANAGE_OPERATIONS
-  VIEW_ALL_DATA
-  VIEW_TRAINING_RECORDS
-  VIEW_EVENT_RECORDS
-  VIEW_ROSTER
-}
-
-enum EventStatus {
-  DRAFT
-  PUBLISHED
-  COMPLETED
-  CANCELLED
-}
-
-enum TrainingType {
-  RATING_PROGRESSION
-  SOLO_ENDORSEMENT
-  RECURRENT_TRAINING
-}
-
-enum MentorInputLevel {
-  CONSTANT
-  RARE
-  NO_INPUT
-  NOT_COVERED
-}
-
-enum PerformanceLevel {
-  BELOW
-  AT
-  ABOVE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Account {
@@ -125,145 +60,288 @@ model Account {
   userId            String
   type              String
   provider          String
-  providerAccountId String
-  refreshToken      String? @db.Text
-  accessToken       String? @db.Text
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  providerAccountId String // Ini akan menyimpan CID dari VATSIM
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique @map("session_token")
+  sessionToken String   @unique
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
-model Resource {
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ==========================================
+// 2. ROSTER & CERTIFICATES
+// ==========================================
+
+model Certificate {
   id          String  @id @default(cuid())
+  code        String  @unique // DEL, GND, TWR, etc
   name        String
-  description String
-  link        String
-  isStaffOnly Boolean
+  description String?
+
+  userCertificates UserCertificate[]
 }
 
-model Event {
-  id              String      @id @default(cuid())
-  name            String
-  description     String?     @db.Text
-  bannerImageUrl  String?
-  startDateTime   DateTime
-  endDateTime     DateTime
-  status          EventStatus @default(DRAFT)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  participants    User[]      @relation("EventParticipants")
+model UserCertificate {
+  id            String  @id @default(cuid())
+  userId        String
+  certificateId String
+  issuerId      String? // Mentor/Admin yang memberikan
 
-  createdBy       User?       @relation("CreatedEvents", fields: [createdById], references: [id])
-  createdById     String?
+  issuedAt   DateTime   @default(now())
+  validUntil DateTime?
+  status     CertStatus @default(ACTIVE)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issuer      User?       @relation("Issuer", fields: [issuerId], references: [id])
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, certificateId])
+  @@index([userId])
 }
+
+// ==========================================
+// 3. TRAINING SYSTEM (With Solo Detail)
+// ==========================================
 
 model Training {
-  id            String        @id @default(cuid())
-  type          TrainingType 
-  student       User          @relation("StudentTrainings", fields: [studentId], references: [id], onDelete: Cascade)
-  studentId     String
-  mentor        User?         @relation("MentorTrainings", fields: [mentorId], references: [id], onDelete: SetNull)
-  mentorId      String?
-  assignedBy    User?         @relation("StaffTrainingAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
-  assignedById  String?
-  status        String
-  notes         String?       @db.Text
-  trainingPlan  String?       @db.Text
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id        String  @id @default(cuid())
+  studentId String
+  mentorId  String?
 
-  ratingDetail  TrainingRatingDetail?
-  soloDetail    TrainingSoloDetail?
-  sessions      TrainingSession[]
+  title  String // e.g. "S2 Tower Training"
+  status TrainingStatus @default(IN_PROGRESS)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student User  @relation("StudentTrainings", fields: [studentId], references: [id], onDelete: Cascade)
+  mentor  User? @relation("MentorTrainings", fields: [mentorId], references: [id])
+
+  sessions   TrainingSession[]
+  soloDetail TrainingSoloDetail? // Link ke detail solo jika ada
 
   @@index([studentId])
   @@index([mentorId])
 }
 
-model TrainingRatingDetail {
-  id             String      @id @default(cuid())
-  training       Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  trainingId     String      @unique
-  targetRating   String 
-}
-
 model TrainingSoloDetail {
-  id                String      @id @default(cuid())
-  training          Training    @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  trainingId        String      @unique
-  position          String
-  validUntil        DateTime?
+  id         String @id @default(cuid())
+  trainingId String @unique
+
+  position   String // e.g. "WIII_TWR"
+  validUntil DateTime? // Tanggal expired solo
+
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
 }
 
 model TrainingSession {
-  id                String                    @id @default(cuid())
-  training          Training                  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
-  trainingId        String
-  mentor            User                      @relation("MentorSessions", fields: [mentorId], references: [id], onDelete: Cascade)
-  mentorId          String
-  sessionDate       DateTime
-  position          String
-  notes             String?                   @db.Text
-  competencyResults SessionCompetencyResult[]
-  createdAt         DateTime                  @default(now())
+  id         String @id @default(cuid())
+  trainingId String
+  mentorId   String
+
+  startTime DateTime
+  endTime   DateTime?
+  position  String
+
+  summary     String?
+  privateNote String?
+
+  rating SessionRating @default(SATISFACTORY)
+
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  mentor   User     @relation("MentorSessions", fields: [mentorId], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@index([trainingId])
 }
 
-model CompetencyTemplate {
-  id             String  @id @default(cuid())
-  name           String  @unique
-  targetRating   String
-  targetPosition String
+// ==========================================
+// 4. LMS & EXAMS
+// ==========================================
 
-  sections       CompetencySection[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-model CompetencySection {
-  id          String             @id @default(cuid())
-  template    CompetencyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  templateId  String
-
-  order       Int
+model Course {
+  id          String  @id @default(cuid())
   title       String
-  items       CompetencyItem[]
+  description String?
+  minRating   Int?
+  isPublished Boolean @default(false)
 
-  @@index([templateId])
+  modules  Module[]
+  progress CourseProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model CompetencyItem {
-  id                String                   @id @default(cuid())
-  section           CompetencySection        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  sectionId         String
-  
-  order             Int
-  competency        String
-  results           SessionCompetencyResult[]
-  
-  @@index([sectionId])
+model Module {
+  id       String  @id @default(cuid())
+  courseId String
+  title    String
+  content  String?
+  order    Int     @default(0)
+
+  exam Exam?
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([courseId])
 }
 
-model SessionCompetencyResult {
-  id                 String           @id @default(cuid())
-  trainingSession    TrainingSession  @relation(fields: [trainingSessionId], references: [id], onDelete: Cascade)
-  trainingSessionId  String
-  
-  competencyItem     CompetencyItem   @relation(fields: [competencyItemId], references: [id], onDelete: Cascade)
-  competencyItemId   String
-  
-  mentorInput        MentorInputLevel
-  performanceLevel   PerformanceLevel
-  notes              String?
-  
-  @@unique([trainingSessionId, competencyItemId])
+model Exam {
+  id           String @id @default(cuid())
+  moduleId     String @unique
+  title        String
+  passingScore Int    @default(80)
+
+  questions   Question[]
+  submissions ExamSubmission[]
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id     String       @id @default(cuid())
+  examId String
+  text   String
+  type   QuestionType
+  points Int          @default(1)
+  order  Int          @default(0)
+
+  options QuestionOption[]
+  answers ExamAnswer[]
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model QuestionOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question    Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  examAnswers ExamAnswer[]
+}
+
+model ExamSubmission {
+  id     String @id @default(cuid())
+  examId String
+  userId String
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  score  Float?
+  status SubmissionStatus @default(IN_PROGRESS)
+
+  adminFeedback String?
+
+  answers ExamAnswer[]
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([examId])
+}
+
+model ExamAnswer {
+  id           String @id @default(cuid())
+  submissionId String
+  questionId   String
+
+  selectedOptionId String?
+  textAnswer       String?
+
+  isCorrect     Boolean?
+  pointsAwarded Int      @default(0)
+
+  submission     ExamSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption QuestionOption? @relation(fields: [selectedOptionId], references: [id]) // Diperbaiki: Relasi optional ke QuestionOption
+}
+
+model CourseProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  courseId    String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+}
+
+// ==========================================
+// 5. ENUMS
+// ==========================================
+
+enum RosterStatus {
+  ACTIVE
+  INACTIVE
+  LOA
+  VISITOR
+  SUSPENDED
+  RESIDENT
+}
+
+enum CertStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum TrainingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum SessionRating {
+  UNSATISFACTORY
+  SATISFACTORY
+  EXCELLENT
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  ESSAY
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  PENDING_REVIEW
+  PASSED
+  FAILED
 }

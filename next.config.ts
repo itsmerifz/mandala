@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "www.gradvatar.com"
+        hostname: "www.gravatar.com"
       }
     ]
   }
