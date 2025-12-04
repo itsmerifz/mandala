@@ -1,131 +1,107 @@
-import { Permission, PrismaClient } from "./generated";
+import { PrismaClient } from "./generated";
 
 const prisma = new PrismaClient()
 
-async function seedRole(name: string, description: string, color: string, permissions: Permission[]) {
-  const role = await prisma.role.upsert({
-    where: { name },
-    update: { description, color },
-    create: { name, description, color },
-  })
-
-  await prisma.rolePermission.deleteMany({
-    where: { roleId: role.id },
-  })
-
-  if (permissions.length > 0) {
-    await prisma.rolePermission.createMany({
-      data: permissions.map(perm => ({
-        roleId: role.id,
-        permission: perm,
-      })),
-    });
-  }
-}
-
-async function seedCertificate(code: string, name: string, color: string) {
-    await prisma.certificate.upsert({
-        where: { code }, // Menggunakan 'code' sebagai unique identifier
-        update: { name, color },
-        create: { code, name, color },
-    });
-    console.log(`Seeded certificate: '${name} (${code})'`);
-}
-
-
 async function main() {
-  await seedRole(
-    'Admin (Superadmin)',
-    'Full system access, manage users and content, full control over website settings, manage all data.',
-    'red-600',
-    [Permission.ADMINISTRATOR] // Permission ADMINISTRATOR sudah cukup untuk memberikan akses penuh
-  )
+  console.log('🌱 Starting seeding...')
 
-  await seedRole(
-    'Director (General)',
-    'View all system data, manage overall operations.',
-    'yellow-500',
-    [Permission.VIEW_ALL_DATA, Permission.MANAGE_OPERATIONS]
-  )
+  // 1. Buat COURSE (Induk)
+  const courseS2 = await prisma.course.upsert({
+    where: { id: 'crs_s2_tower' },
+    update: {},
+    create: {
+      id: 'crs_s2_tower',
+      title: 'S2 Tower Controller Course',
+      description: 'Fundamental knowledge required for Tower Controller (S2) rating.',
+      minRating: 2, // Minimal S1 untuk ambil ini
+      isPublished: true,
+    }
+  })
 
-  await seedRole(
-    'Training Director',
-    'Manage training sessions, materials, schedules, monitor progress, access to participant data.',
-    'blue-500',
-    [Permission.MANAGE_TRAINING, Permission.VIEW_TRAINING_RECORDS] // Director juga harus bisa melihat
-  )
+  // 2. Buat MODULE
+  const modTheory = await prisma.module.upsert({
+    where: { id: 'mod_s2_theory' },
+    update: {},
+    create: {
+      id: 'mod_s2_theory',
+      courseId: courseS2.id,
+      title: 'Tower Theory & Procedures',
+      content: 'Please read IDvACC Policy Section 3 before taking this exam.',
+      order: 1
+    }
+  })
 
-  await seedRole(
-    'Event Director',
-    'Manage events, schedules, participants, post-event reports.',
-    'green-500',
-    [Permission.MANAGE_EVENTS, Permission.VIEW_EVENT_RECORDS]
-  )
+  // 3. Buat EXAM
+  const examBasic = await prisma.exam.upsert({
+    where: { moduleId: modTheory.id }, // Relation One-to-One
+    update: {},
+    create: {
+      id: 'exam_s2_basic',
+      moduleId: modTheory.id,
+      title: 'Basic Tower Theory Exam',
+      passingScore: 80, // Persen
+    }
+  })
 
-  await seedRole(
-    'Facilities Director',
-    'Manage facilities, ensure readiness for events and training.',
-    'indigo-500',
-    [Permission.MANAGE_FACILITIES]
-  )
+  // 4. Buat QUESTIONS (Kita hapus dulu biar gak duplikat kalo di-run ulang)
+  await prisma.question.deleteMany({ where: { examId: examBasic.id } })
 
-  await seedRole(
-    'Public Relations',
-    'Manage external communications and social media.',
-    'pink-500',
-    [Permission.MANAGE_COMMUNICATIONS]
-  )
+  // Soal 1: Pilihan Ganda
+  await prisma.question.create({
+    data: {
+      examId: examBasic.id,
+      text: 'What is the minimum separation between departing aircraft on the same runway?',
+      type: 'MULTIPLE_CHOICE',
+      points: 10,
+      order: 1,
+      options: {
+        create: [
+          { text: '1 Minute', isCorrect: false },
+          { text: '2 Minutes or appropriate distance', isCorrect: true },
+          { text: 'No separation needed', isCorrect: false },
+          { text: '5 Miles', isCorrect: false },
+        ]
+      }
+    }
+  })
 
-  await seedRole(
-    'Webmaster',
-    'Maintain technical aspects of the website, update and manage content.',
-    'gray-600',
-    [Permission.MANAGE_WEBSITE]
-  )
+  // Soal 2: True/False
+  await prisma.question.create({
+    data: {
+      examId: examBasic.id,
+      text: 'A Tower Controller is responsible for aircraft within the maneuvering area.',
+      type: 'TRUE_FALSE',
+      points: 10,
+      order: 2,
+      options: {
+        create: [
+          { text: 'True', isCorrect: true },
+          { text: 'False', isCorrect: false },
+        ]
+      }
+    }
+  })
 
-  await seedRole(
-    'Mentor',
-    'Manage materials, provide feedback, mentor participants.',
-    'teal-500',
-    [Permission.MANAGE_TRAINING] // Diberi akses untuk mengelola training
-  )
+  // Soal 3: Essay
+  await prisma.question.create({
+    data: {
+      examId: examBasic.id,
+      text: 'Explain the procedure for a Missed Approach in WIII.',
+      type: 'ESSAY',
+      points: 20,
+      order: 3,
+      // Essay tidak butuh options
+    }
+  })
 
-  await seedRole(
-    'Instructor',
-    'Manage sessions, upload materials, assess participants.',
-    'cyan-500',
-    [Permission.MANAGE_TRAINING] // Diberi akses yang sama dengan Mentor
-  )
-
-  await seedRole(
-    'Student',
-    'Participate in training, access materials, submit assignments.',
-    'purple-500',
-    [Permission.VIEW_TRAINING_RECORDS]
-  )
-
-  // --- Seed Default Role for New Users ---
-  await seedRole(
-    'Member',
-    'Default role for all registered users.',
-    'slate-400',
-    [Permission.VIEW_ROSTER, Permission.VIEW_EVENT_RECORDS] // Member biasa bisa melihat roster dan daftar event
-  )
-
-  await seedCertificate('DEL', 'Delivery Controller', 'gray-400');
-  await seedCertificate('GND', 'Ground Controller', 'amber-500');
-  await seedCertificate('TWR', 'Tower Controller', 'red-500');
-  await seedCertificate('APP', 'Approach Controller', 'blue-500');
-  await seedCertificate('CTR', 'Center Controller', 'indigo-600');
-
-  console.log('Seeding finished.')
+  console.log('✅ Seeding finished.')
 }
 
 main()
   .catch((e) => {
-    console.error(e);
-    process.exit(1);
+    console.error(e)
+    process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect();
-  });
+    await prisma.$disconnect()
+  })

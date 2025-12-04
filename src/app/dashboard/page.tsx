@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { getRatingLabel, getRatingColor } from "@/lib/utils"
 import md5 from "md5"
 import Image from "next/image"
+import { CircleCheckBig, TriangleAlert } from "lucide-react"
 
 export default function Page() {
   const { data: session, status } = useSession()
@@ -49,7 +50,7 @@ export default function Page() {
       {/* Solo Endorsement */}
       {activeSolo && (
         <div role="alert" className="alert alert-info text-info-content border-none">
-          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-8 w-8" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <CircleCheckBig />
           <div className="flex flex-col w-full">
             <div className="flex justify-between items-center w-full">
               <h3 className="font-bold text-lg">Active Solo Endorsement</h3>
@@ -77,8 +78,8 @@ export default function Page() {
               </div>
               <div>
                 <div className="font-bold text-lg">{user.name}</div>
-                <div className={`text-sm badge ${getRatingColor(user.rating)} badge-soft mt-1`}>
-                  {getRatingLabel(user.rating)}
+                <div className={`text-sm badge ${getRatingColor(user.ratingId)} badge-soft mt-1`}>
+                  {getRatingLabel(user.ratingId)}
                 </div>
               </div>
             </div>
@@ -125,7 +126,7 @@ export default function Page() {
           <div className="card-body">
             <h2 className="card-title text-sm uppercase text-base-content/50">Pending Exams</h2>
             <div className="alert alert-warning text-sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              <TriangleAlert />
               <span>Basic Theory Exam needs your attention.</span>
             </div>
             <div className="card-actions justify-end mt-2">

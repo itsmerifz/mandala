@@ -200,11 +200,12 @@ model Course {
 }
 
 model Module {
-  id       String  @id @default(cuid())
+  id       String     @id @default(cuid())
   courseId String
   title    String
   content  String?
-  order    Int     @default(0)
+  order    Int        @default(0)
+  type     ModuleType @default(TEXT)
 
   exam Exam?
 
@@ -344,4 +345,9 @@ enum SubmissionStatus {
   PENDING_REVIEW
   PASSED
   FAILED
+}
+
+enum ModuleType {
+  TEXT
+  SLIDE
 }

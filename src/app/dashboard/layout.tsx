@@ -1,13 +1,17 @@
 import SidebarContent from "@/components/dashboard/sidebar"
 import pkg from "@root/package.json"
+import { auth } from "@root/auth"
+import { redirect } from "next/navigation"
 
 const APP_VERSION = pkg.version
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth()
+  if (!session) redirect('/')
   return (
     <div className="drawer lg:drawer-open bg-base-200">
       <input id="dashboard-drawer" type="checkbox" className="drawer-toggle" />
