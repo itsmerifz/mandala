@@ -155,6 +155,7 @@ model TrainingSoloDetail {
   trainingId String @unique
 
   position   String // e.g. "WIII_TWR"
+  validFrom  DateTime  @default(now())
   validUntil DateTime? // Tanggal expired solo
 
   training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
@@ -224,6 +225,8 @@ model Exam {
   prerequisiteId String?
   prerequisite   Course? @relation("CourseToExam", fields: [prerequisiteId], references: [id])
   questionCount  Int     @default(0)
+  isSelection    Boolean @default(false)
+  minRating      Int     @default(0)
 
   questions   Question[]
   submissions ExamSubmission[]
@@ -266,9 +269,11 @@ model ExamSubmission {
   score  Float?
   status SubmissionStatus @default(IN_PROGRESS)
 
-  adminFeedback String?
-
-  answers ExamAnswer[]
+  adminFeedback  String?
+  answers        ExamAnswer[]
+  generatedCode  String? // Kode unik jika lulus (e.g. SEL-2025-X)
+  appReason      String?      @db.Text
+  appExpectation String?      @db.Text
 
   exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

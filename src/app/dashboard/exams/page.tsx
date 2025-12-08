@@ -6,30 +6,16 @@ import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Timer, AlertCircle } from "lucide-react" // Import Icon
 
 export default function ExamListPage() {
+  const router = useRouter()
   const { data: session } = useSession()
   const [exams, setExams] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
 
-  const handleStartExam = async (examId: string) => {
-    try {
-      // 1. Panggil Endpoint Start (Acak Soal)
-      const res = await api.api.exams[examId].start.post({
-        userId: session?.user?.id as string
-      })
-
-      if (res.data?.status === 'success') {
-        // 2. Redirect ke halaman pengerjaan dengan ID SUBMISSION, bukan ID EXAM
-        const submissionId = res.data.data.submissionId;
-        router.push(`/dashboard/exams/take/${submissionId}`)
-      }
-    } catch (e) {
-      console.error(e)
-      alert("Failed to start exam")
-    }
-  }
+  // State untuk Modal Cooldown
+  const [cooldownModal, setCooldownModal] = useState<{ show: boolean, msg: string }>({ show: false, msg: "" })
 
   useEffect(() => {
     const fetchExams = async () => {
@@ -47,6 +33,36 @@ export default function ExamListPage() {
     if (session) fetchExams()
   }, [session])
 
+  const handleStartExam = async (examId: string) => {
+    try {
+      const res = await api.api.exams[examId].start.post({
+        userId: session?.user?.id as string
+      })
+
+      // Sukses -> Masuk ke Ujian
+      if (res.data?.status === 'success') {
+        const submissionId = res.data.data.submissionId;
+        router.push(`/dashboard/exams/take/${submissionId}`)
+      }
+
+      // Error Handling Khusus
+      if (res.error) {
+        // Cek Status Code 429 (Too Many Requests / Cooldown)
+        if (res.error.status === 429) {
+          setCooldownModal({
+            show: true,
+            msg: res.error.value?.message || "You are in cooldown period."
+          })
+        } else {
+          alert("Failed to start exam")
+        }
+      }
+    } catch (e) {
+      console.error(e)
+      alert("System error")
+    }
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <div>
@@ -61,23 +77,22 @@ export default function ExamListPage() {
             {exams.map((exam) => (
               <div key={exam.id} className={`card border transition-all relative overflow-hidden
                         ${exam.isLocked
-                  ? 'bg-base-200 border-base-300 opacity-80 grayscale-[0.5]'
+                  ? 'bg-base-200 border-base-300 opacity-80'
                   : 'bg-base-100 shadow-sm border-base-200 hover:shadow-md'
                 }
                     `}>
                 <div className="card-body">
-                  {/* Status Badge */}
+                  {/* Header Badge */}
                   <div className="flex justify-between items-start">
                     {exam.isLocked ? (
-                      <div className="badge badge-ghost gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-                        LOCKED
-                      </div>
+                      <div className="badge badge-ghost gap-1">LOCKED</div>
+                    ) : exam.isSelection ? (
+                      <div className="badge badge-warning text-xs font-bold">SELECTION</div>
                     ) : (
                       <div className="badge badge-success badge-outline text-xs">AVAILABLE</div>
                     )}
 
-                    {/* Score Badge jika pernah dikerjakan */}
+                    {/* Score Badge */}
                     {exam.lastAttempt && (
                       <div className={`badge ${exam.lastAttempt.status === 'PASSED' ? 'badge-success text-white' : 'badge-error text-white'}`}>
                         {exam.lastAttempt.status} ({exam.lastAttempt.score}%)
@@ -87,26 +102,48 @@ export default function ExamListPage() {
 
                   <h2 className="card-title mt-2">{exam.title}</h2>
                   <p className="text-sm text-base-content/60">
-                    {exam.questionCount} Questions &bull; Pass: 80%
+                    {exam.questionCount} Questions &bull; Pass: {exam.passingScore}%
                   </p>
 
-                  {/* Info Syarat jika Locked */}
-                  {exam.isLocked && (
+                  {/* --- INDIKATOR COOLDOWN (VISUAL) --- */}
+                  {exam.cooldownRemaining > 0 && (
+                    <div className="mt-4 p-3 bg-error/10 border border-error/20 rounded-lg flex items-start gap-3">
+                      <Timer className="w-5 h-5 text-error shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-xs text-error">COOLDOWN ACTIVE</div>
+                        <p className="text-[10px] opacity-70">
+                          You must wait {exam.cooldownRemaining} minutes before retaking this selection exam.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info Syarat jika Locked (Bukan Cooldown) */}
+                  {exam.isLocked && exam.cooldownRemaining === 0 && (
                     <div className="alert alert-warning text-xs mt-4 py-2 rounded-md">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                       <span>Complete <b>{exam.prerequisiteTitle}</b> first.</span>
                     </div>
                   )}
 
                   <div className="card-actions justify-end mt-4">
                     {exam.isLocked ? (
-                      <Link href="/dashboard/lms" className="btn btn-sm btn-ghost">
-                        Go to Course
-                      </Link>
-                    ) : exam.lastAttempt?.status === 'PASSED' ? (
+                      exam.cooldownRemaining > 0 ? (
+                        // Tombol Mati saat Cooldown
+                        <button className="btn btn-sm btn-disabled">
+                          Wait {exam.cooldownRemaining}m
+                        </button>
+                      ) : (
+                        <Link href="/dashboard/lms" className="btn btn-sm btn-ghost">
+                          Go to Course
+                        </Link>
+                      )
+                    ) : exam.lastAttempt?.status === 'PASSED' && !exam.isSelection ? (
                       <button className="btn btn-sm btn-success btn-disabled text-white">Passed</button>
                     ) : (
-                      <button onClick={() => handleStartExam(exam.id)} className="btn btn-sm btn-primary">
+                      <button
+                        onClick={() => handleStartExam(exam.id)}
+                        className="btn btn-sm btn-primary"
+                      >
                         {exam.lastAttempt ? "Retake Exam" : "Start Exam"}
                       </button>
                     )}
@@ -116,6 +153,30 @@ export default function ExamListPage() {
             ))}
           </div>
       }
+
+      {/* --- MODAL COOLDOWN / ERROR --- */}
+      {cooldownModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
+          <div className="card w-full max-w-sm bg-base-100 shadow-xl">
+            <div className="card-body items-center text-center">
+              <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-2">
+                <AlertCircle className="w-8 h-8 text-error" />
+              </div>
+              <h2 className="card-title text-error">Access Denied</h2>
+              <p className="text-sm py-2">{cooldownModal.msg}</p>
+              <div className="card-actions">
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setCooldownModal({ show: false, msg: "" })}
+                >
+                  Understood
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

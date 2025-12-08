@@ -4,14 +4,14 @@ import { cwd } from 'process'
 import { writeFile, mkdir } from 'fs/promises'
 
 export const uploadRoutes = new Elysia({ prefix: '/upload' })
-  .post('/', async ({ body, error }) => {
+  .post('/', async ({ body, status }) => {
     const file = body.file as File
 
-    if (!file) return error(400, { status: 'error', message: 'No file uploaded' })
+    if (!file) return status(400, { status: 'error', message: 'No file uploaded' })
 
     // Validasi Ukuran (Misal max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      return error(400, { status: 'error', message: 'File too large (max 5MB)' })
+      return status(400, { status: 'error', message: 'File too large (max 5MB)' })
     }
 
     // 1. Generate Nama Unik
@@ -45,7 +45,7 @@ export const uploadRoutes = new Elysia({ prefix: '/upload' })
       }
     } catch (e) {
       console.error("Upload Error:", e)
-      return error(500, { status: 'error', message: 'Failed to save file' })
+      return status(500, { status: 'error', message: 'Failed to save file' })
     }
   }, {
     body: t.Object({

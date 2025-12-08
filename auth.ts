@@ -248,6 +248,7 @@ export const authOptions: NextAuthConfig = {
         token.division = u.division
         token.role = u.role
         token.rosterStatus = u.rosterStatus
+        token.region = u.region
       }
 
       // Update session manual (jika perlu update data tanpa login ulang)
@@ -269,6 +270,7 @@ export const authOptions: NextAuthConfig = {
         session.user.division = token.division as string
         session.user.role = token.role as string
         session.user.rosterStatus = token.rosterStatus as string
+        session.user.region = token.region as string
       }
       return session;
     },

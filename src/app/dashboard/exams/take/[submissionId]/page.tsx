@@ -23,6 +23,8 @@ export default function TakeExamPage() {
   // State Jawaban: { "questionId": "optionId" atau "text answer" }
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [appData, setAppData] = useState({ reason: "", expectation: "" })
+  const [resultCode, setResultCode] = useState<string | null>(null)
   const storageKey = `autosave_${submissionId}_${userId}`
 
   const renderers = {
@@ -77,6 +79,7 @@ export default function TakeExamPage() {
   useEffect(() => {
     const fetchExam = async () => {
       try {
+        //@ts-expect-error data error
         const { data } = await api.api.exams.submission[submissionId].get()
 
         if (data && data.status === 'success') {
@@ -134,8 +137,12 @@ export default function TakeExamPage() {
 
   // 3. Handle Submit
   const handleSubmit = async () => {
-    if (!confirm("Are you sure you want to finish this exam?")) return;
+    if (exam.isSelection) {
+      if (appData.reason.length < 20) return alert("Please fill the Reason field (min 20 chars).");
+      if (appData.expectation.length < 20) return alert("Please fill the Expectation field (min 20 chars).");
+    }
 
+    if (!confirm("Are you sure you want to finish this exam?")) return
     setSubmitting(true)
     try {
       const formattedAnswers = Object.entries(answers).map(([qId, val]) => ({
@@ -147,19 +154,38 @@ export default function TakeExamPage() {
       // Kita kirim submissionId, BUKAN examId/userId
       const res = await api.api.exams.submit.post({
         submissionId: submissionId as string,
-        answers: formattedAnswers
-      })
+        answers: formattedAnswers,
+        // Kirim data seleksi
+        appReason: appData.reason,
+        appExpectation: appData.expectation
+      }) as any
       // -------------------------
 
-      if (res.data && res.data.status === 'success') {
+      if (res.data?.status === 'success') {
         localStorage.removeItem(storageKey);
+        const data = res.data.data as any;
 
-        const resultData = res.data.data as any;
-        alert(`Exam Submitted! Result: ${resultData.result}`)
-        router.push('/dashboard/exams')
-      } else {
-        const errorData = res.data as any;
-        alert("Submission failed: " + (errorData?.message || "Unknown error"))
+        // JIKA LULUS SELEKSI -> TAMPILKAN MODAL CODE
+        if (exam.isSelection && data.result === 'PASSED' && data.generatedCode) {
+          setResultCode(data.generatedCode)
+          // (Jangan redirect dulu, biarkan user copy code)
+        } else {
+          alert(`Exam Finished: ${data.result}`)
+          router.push('/dashboard/exams')
+        }
+      }
+      if (res.data?.status === 'success') {
+        localStorage.removeItem(storageKey);
+        const data = res.data.data as any;
+
+        // JIKA LULUS SELEKSI -> TAMPILKAN MODAL CODE
+        if (exam.isSelection && data.result === 'PASSED' && data.generatedCode) {
+          setResultCode(data.generatedCode)
+          // (Jangan redirect dulu, biarkan user copy code)
+        } else {
+          alert(`Exam Finished: ${data.result}`)
+          router.push('/dashboard/exams')
+        }
       }
     } catch (err) {
       // Tampilkan error asli untuk debugging
@@ -168,6 +194,37 @@ export default function TakeExamPage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (resultCode) {
+    const copyText = `Name: ${session?.user?.name}\nCID: ${session?.user?.cid}\nGenerated Code: ${resultCode}\nReason For Joining IDvACC: ${appData.reason}\nExpectation from IDvACC Training: ${appData.expectation}`;
+
+    return (
+      <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="card bg-base-100 max-w-lg w-full shadow-2xl animate-in zoom-in">
+          <div className="card-body">
+            <h2 className="card-title text-success flex gap-2">
+              🎉 Selection Passed!
+            </h2>
+            <p className="text-sm opacity-70">Congratulations! Please copy the template below and paste it to the HQ Application form.</p>
+
+            <div className="mockup-code bg-base-300 text-base-content my-4 text-xs overflow-y-auto max-h-60 block">
+              <pre className="p-4 whitespace-pre-wrap font-mono block">
+                {copyText}
+              </pre>
+            </div>
+
+            <div className="card-actions justify-end gap-2">
+              <button className="btn btn-primary" onClick={() => {
+                navigator.clipboard.writeText(copyText);
+                alert("Copied to clipboard!");
+              }}>Copy Template</button>
+              <button className="btn btn-ghost" onClick={() => router.push('/dashboard/exams')}>Close & Return</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading) return <div className="p-10 text-center loading loading-spinner">Loading Exam...</div>
@@ -256,6 +313,36 @@ export default function TakeExamPage() {
           </div>
         ))}
       </div>
+
+      {exam.isSelection && (
+        <div className="card bg-base-100 border border-primary/20 shadow-md">
+          <div className="card-body">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <span className="badge badge-primary">REQUIRED</span>
+              Application Details
+            </h3>
+            <p className="text-xs opacity-60 mb-4">These answers will be included in your application template.</p>
+
+            <div className="form-control">
+              <label className="label font-bold">Reason for joining IDvACC</label>
+              <textarea className="textarea textarea-bordered h-24"
+                placeholder="Tell us why you want to join..."
+                value={appData.reason}
+                onChange={e => setAppData({ ...appData, reason: e.target.value })}
+              ></textarea>
+            </div>
+
+            <div className="form-control mt-4">
+              <label className="label font-bold">Expectation from IDvACC Training</label>
+              <textarea className="textarea textarea-bordered h-24"
+                placeholder="What do you expect to learn..."
+                value={appData.expectation}
+                onChange={e => setAppData({ ...appData, expectation: e.target.value })}
+              ></textarea>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submit Button */}
       <div className="fixed bottom-0 left-0 lg:left-80 right-0 p-4 bg-base-100 border-t border-base-200 flex justify-end gap-4 z-20">

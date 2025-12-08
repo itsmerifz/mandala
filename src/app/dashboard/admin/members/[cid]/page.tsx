@@ -10,23 +10,60 @@ import { useSession } from "next-auth/react"
 export default function AdminMemberDetail() {
   const { cid } = useParams()
   const { data: session } = useSession()
-
+  const [mentors, setMentors] = useState<any[]>([])
   const [member, setMember] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
 
+  const [selectedRole, setSelectedRole] = useState("")
+  const [selectedMentor, setSelectedMentor] = useState("")
+  const [soloForm, setSoloForm] = useState({
+    position: "",
+    validFrom: new Date().toISOString().split('T')[0], // Hari ini (YYYY-MM-DD)
+    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // +30 Hari
+  })
+
   // Fetch Data
   const fetchMember = async () => {
     try {
-      // @ts-expect
-      const { data } = await api.api.admin.members[cid as string].get()
-      if (data?.status === 'success') setMember(data.data)
+      // @ts-expect-error data error
+      const resMember = await api.api.admin.members[cid].get()
+      const resMentors = await api.api.admin.list.mentors.get()
+      if (resMember.data?.status === 'success') {
+        const m = resMember.data.data
+        setMember(m)
+        setSelectedRole(m.role) // Set default role
+
+        // --- POPULATE FORM SOLO JIKA ADA ---
+        // Cari training yang sedang aktif dan punya soloDetail
+        const activeTr = m.trainingsAsStudent.find((t: any) => t.status === 'IN_PROGRESS' && t.soloDetail);
+        if (activeTr && activeTr.soloDetail) {
+          setSoloForm({
+            position: activeTr.soloDetail.position,
+            validFrom: new Date(activeTr.soloDetail.validFrom).toISOString().split('T')[0],
+            validUntil: new Date(activeTr.soloDetail.validUntil).toISOString().split('T')[0]
+          })
+        } else {
+          // Reset jika tidak ada solo aktif
+          setSoloForm({
+            position: "",
+            validFrom: new Date().toISOString().split('T')[0],
+            validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          })
+        }
+
+        // Cari mentor yang sedang aktif (dari training terakhir)
+        const currentTraining = m.trainingsAsStudent[0] // Ambil yg terbaru
+        if (currentTraining && currentTraining.status === 'IN_PROGRESS') {
+          setSelectedMentor(currentTraining.mentorId || "")
+        }
+      }
+      if (resMentors.data?.status === 'success') setMentors(resMentors.data.data)
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }
 
   useEffect(() => {
-
     if (cid) fetchMember()
   }, [cid])
 
@@ -38,6 +75,77 @@ export default function AdminMemberDetail() {
     await api.api.admin.members.status.post({ cid: cid as string, status: newStatus })
     await fetchMember()
     setProcessing(false)
+  }
+
+  // Handler Assign Solo
+  const handleAssignSolo = async () => {
+    if (!soloForm.position) return alert("Position required");
+
+    setProcessing(true)
+    try {
+      await api.api.admin.members['assign-solo'].post({
+        studentCid: cid as string,
+        position: soloForm.position,
+        validFrom: new Date(soloForm.validFrom).toISOString(),
+        validUntil: new Date(soloForm.validUntil).toISOString()
+      })
+      alert("Solo Endorsement Assigned!")
+      fetchMember()
+    } catch (e) {
+      console.error(e)
+      alert("Failed")
+    }
+    finally { setProcessing(false) }
+  }
+
+  // Handler Revoke Solo
+  const handleRevokeSolo = async () => {
+    if (!confirm("Revoke current solo endorsement?")) return;
+    setProcessing(true)
+    try {
+      await api.api.admin.members['revoke-solo'].post({ studentCid: cid as string })
+      fetchMember()
+    } catch (e) {
+      console.error(e)
+      alert("Failed")
+    }
+    finally { setProcessing(false) }
+  }
+
+  // Helper cek apakah sedang punya solo aktif
+  const currentSolo = member?.trainingsAsStudent.find((t: any) => t.status === 'IN_PROGRESS' && t.soloDetail)?.soloDetail
+
+  const handleRoleUpdate = async () => {
+    if (!confirm(`Promote/Demote this user to ${selectedRole}?`)) return;
+    setProcessing(true)
+    try {
+      await api.api.admin.members.role.post({
+        targetCid: cid as string,
+        role: selectedRole
+      })
+      alert("Role updated!")
+      fetchMember()
+    } catch (e) {
+      console.error(e)
+      alert("Failed")
+    }
+    finally { setProcessing(false) }
+  }
+
+  const handleAssignMentor = async () => {
+    setProcessing(true)
+    try {
+      await api.api.admin.members['assign-mentor'].post({
+        studentCid: cid as string,
+        mentorId: selectedMentor
+      })
+      alert("Mentor assigned successfully!")
+      fetchMember()
+    } catch (e) {
+      console.error(e)
+      alert("Failed to assign mentor")
+    }
+    finally { setProcessing(false) }
   }
 
   // Handler: Toggle Sertifikat
@@ -59,6 +167,7 @@ export default function AdminMemberDetail() {
 
   const ALL_CERTS = ['DEL', 'GND', 'TWR', 'APP', 'CTR']
   const STATUS_OPTIONS = ['ACTIVE', 'LOA', 'VISITOR', 'SUSPENDED']
+  const ROLES = ['MEMBER', 'MENTOR', 'STAFF', 'ADMIN']
 
   return (
     <div className="space-y-8 pb-20">
@@ -94,6 +203,122 @@ export default function AdminMemberDetail() {
                 <span className="p-2">{s}</span>
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card bg-base-100 shadow-sm border border-base-200">
+        <div className="card-body">
+          <h2 className="card-title text-base mb-4 flex items-center gap-2">
+            Administration
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* 1. ROLE CHANGER */}
+            <div className="form-control">
+              <label className="label font-bold">App Role</label>
+              <div className="flex gap-2">
+                <select
+                  className="select w-full"
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                >
+                  {ROLES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleRoleUpdate}
+                  disabled={processing || selectedRole === member.role}
+                  className="btn btn-primary"
+                >
+                  Update
+                </button>
+              </div>
+              <div className="label text-xs text-base-content/60">
+                MENTOR/STAFF/ADMIN can access instructor station.
+              </div>
+            </div>
+
+            {/* 2. MENTOR ASSIGNMENT */}
+            <div className="form-control">
+              <label className="label font-bold">Assigned Mentor</label>
+              <div className="flex gap-2">
+                <select
+                  className="select select-bordered w-full"
+                  value={selectedMentor}
+                  onChange={(e) => setSelectedMentor(e.target.value)}
+                >
+                  <option value="">-- No Mentor Assigned --</option>
+                  {mentors
+                    .filter((m: any) => m.cid !== cid) // Jangan tampilkan diri sendiri
+                    .map((m: any) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.ratingShort})
+                      </option>
+                    ))}
+                </select>
+                <button
+                  onClick={handleAssignMentor}
+                  disabled={processing}
+                  className="btn btn-neutral"
+                >
+                  Assign
+                </button>
+              </div>
+              <div className="label text-xs text-base-content/60">
+                Sets primary mentor for active training.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div className="card bg-base-100 shadow-sm border border-base-200">
+        <div className="card-body">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="card-title text-base flex items-center gap-2">
+              Solo Endorsement
+            </h2>
+            {currentSolo && (
+              <div className="badge badge-warning text-xs font-bold animate-pulse">
+                ACTIVE: {currentSolo.position}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <label className="input">
+              <span className="label font-bold">Position</span>
+              <input type="text" className="font-mono uppercase" placeholder="WIII_TWR"
+                value={soloForm.position} onChange={e => setSoloForm({ ...soloForm, position: e.target.value })} />
+            </label>
+
+            <div className="flex gap-4">
+              <label className="input">
+                <span className="label font-bold">Start Date</span>
+                <input type="date"
+                  value={soloForm.validFrom} onChange={e => setSoloForm({ ...soloForm, validFrom: e.target.value })} />
+              </label>
+              <label className="input">
+                <span className="label font-bold">End Date</span>
+                <input type="date"
+                  value={soloForm.validUntil} onChange={e => setSoloForm({ ...soloForm, validUntil: e.target.value })} />
+              </label>
+            </div>
+          </div>
+
+          <div className="card-actions justify-end mt-4">
+            {currentSolo && (
+              <button onClick={handleRevokeSolo} disabled={processing} className="btn btn-error btn-outline btn-sm">
+                Revoke Solo
+              </button>
+            )}
+            <button onClick={handleAssignSolo} disabled={processing} className="btn btn-warning btn-sm">
+              {currentSolo ? "Update Solo" : "Grant Solo"}
+            </button>
           </div>
         </div>
       </div>

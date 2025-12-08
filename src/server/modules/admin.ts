@@ -341,6 +341,10 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
       const student = await prisma.user.findUnique({ where: { cid: studentCid } });
       if (!student) return status(404, { status: 'error', message: 'Student not found' });
 
+      if (student.id === mentorId) {
+        return status(400, { status: 'error', message: 'Cannot assign user as their own mentor' });
+      }
+
       // LOGIKA: 
       // Kita cari Training yang sedang aktif (IN_PROGRESS). 
       // Jika ada, update mentornya.
@@ -381,4 +385,84 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
       studentCid: t.String(),
       mentorId: t.String() // ID internal (CUID) mentor
     })
+  })
+  .post('/members/assign-solo', async ({ body, status }) => {
+    try {
+      const { studentCid, position, validFrom, validUntil } = body;
+
+      // 1. Cari Student
+      const student = await prisma.user.findUnique({ where: { cid: studentCid } });
+      if (!student) return status(404, { status: 'error', message: 'Student not found' });
+
+      // 2. Cari/Buat Training Aktif
+      let activeTraining = await prisma.training.findFirst({
+        where: { studentId: student.id, status: 'IN_PROGRESS' }
+      });
+
+      if (!activeTraining) {
+        activeTraining = await prisma.training.create({
+          data: {
+            studentId: student.id,
+            title: `Training - ${position.split('_')[1] || 'General'}`,
+            status: 'IN_PROGRESS'
+          }
+        });
+      }
+
+      // 3. Upsert Solo Detail (Buat baru atau Update yang ada)
+      // Asumsi: 1 Training hanya punya 1 Active Solo pada satu waktu
+      await prisma.trainingSoloDetail.upsert({
+        where: { trainingId: activeTraining.id },
+        create: {
+          trainingId: activeTraining.id,
+          position: position.toUpperCase(),
+          validFrom: new Date(validFrom),
+          validUntil: new Date(validUntil)
+        },
+        update: {
+          position: position.toUpperCase(),
+          validFrom: new Date(validFrom),
+          validUntil: new Date(validUntil)
+        }
+      });
+
+      return { status: 'success' };
+
+    } catch (e) {
+      console.error(e)
+      return status(500, { status: 'error', message: 'Failed to assign solo' })
+    }
+  }, {
+    body: t.Object({
+      studentCid: t.String(),
+      position: t.String(),
+      validFrom: t.String(),  // Dikirim sbg string ISO date
+      validUntil: t.String()
+    })
+  })
+
+  // 5. Revoke Solo Endorsement (Hapus Izin)
+  .post('/members/revoke-solo', async ({ body, status }) => {
+    try {
+      // Cari active training student ini
+      const student = await prisma.user.findUnique({ where: { cid: body.studentCid } });
+      if (!student) return status(404, { status: 'error', message: 'User not found' });
+
+      const training = await prisma.training.findFirst({
+        where: { studentId: student.id, status: 'IN_PROGRESS' }
+      });
+
+      if (training) {
+        // Hapus detail solo
+        await prisma.trainingSoloDetail.deleteMany({
+          where: { trainingId: training.id }
+        });
+      }
+      return { status: 'success' }
+    } catch (e) {
+      console.error(e)
+      return status(500, { status: 'error', message: 'Failed to revoke' })
+    }
+  }, {
+    body: t.Object({ studentCid: t.String() })
   })

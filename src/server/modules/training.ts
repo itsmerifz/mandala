@@ -52,7 +52,7 @@ export const trainingRoutes = new Elysia({ prefix: '/training' })
   })
   .post('/session', async ({ body, status }) => {
     try {
-      const { mentorCid, studentCid, position, duration, rating, summary, privateNote } = body;
+      const { mentorCid, studentCid, position, rating, summary, privateNote } = body;
 
       // 1. Cari User ID untuk Mentor dan Student berdasarkan CID
       const mentor = await prisma.user.findUnique({ where: { cid: mentorCid } });
@@ -111,4 +111,54 @@ export const trainingRoutes = new Elysia({ prefix: '/training' })
       summary: t.String(),
       privateNote: t.Optional(t.String())
     })
+  })
+
+  .get('/solo/:cid', async ({ params }) => {
+    try {
+      // Cari Detail Solo yang terhubung dengan Training yang sedang IN_PROGRESS
+      const solo = await prisma.trainingSoloDetail.findFirst({
+        where: {
+          training: {
+            student: { cid: params.cid },
+            status: 'IN_PROGRESS'
+          }
+        }
+      })
+
+      if (!solo) return { status: 'empty' }
+
+      // Cek apakah sudah expired
+      const now = new Date()
+      if (solo.validUntil && new Date(solo.validUntil) < now) {
+        return { status: 'expired' }
+      }
+
+      return { status: 'success', data: solo }
+    } catch (e) {
+      console.error(e)
+      return { status: 'error' }
+    }
+  })
+
+  .get('/active/:cid', async ({ params }) => {
+    try {
+      const training = await prisma.training.findFirst({
+        where: {
+          student: { cid: params.cid },
+          status: 'IN_PROGRESS' // Hanya ambil yang aktif
+        },
+        select: {
+          title: true,
+          // Hitung jumlah sesi yang sudah dilakukan
+          _count: {
+            select: { sessions: true }
+          }
+        }
+      })
+
+      return { status: 'success', data: training }
+    } catch (e) {
+      console.error(e)
+      return { status: 'error', message: "Failed to fetch active training" }
+    }
   })

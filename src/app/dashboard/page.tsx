@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 import { useSession } from "next-auth/react"
@@ -5,24 +6,88 @@ import { redirect } from "next/navigation"
 import { getRatingLabel, getRatingColor } from "@/lib/utils"
 import md5 from "md5"
 import Image from "next/image"
-import { CircleCheckBig, TriangleAlert } from "lucide-react"
+import { CircleCheckBig, Loader2, TriangleAlert } from "lucide-react"
+import { useEffect, useState } from "react"
+import { api } from "@/lib/client"
+import { useRouter } from "next/navigation"
 
 export default function Page() {
   const { data: session, status } = useSession()
-  console.log(session)
+  const [activeSolo, setActiveSolo] = useState<any>(null)
+  const [activeTraining, setActiveTraining] = useState<any>(null)
+  const [pendingExam, setPendingExam] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
-  const activeSolo = {
-    position: "WIII_TWR",
-    validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Valid 7 hari lagi
-    mentor: "Mulyono (123456)"
-  }
+  const formatDate = (dateInput: string | Date | null | undefined) => {
+    // 1. Cek apakah data ada
+    if (!dateInput) return "N/A";
 
-  const formatDate = (date: Date) => {
+    // 2. Konversi ke object Date (jika inputnya string ISO)
+    const date = new Date(dateInput);
+
+    // 3. Cek validitas Date (Mencegah error "Invalid time value")
+    if (isNaN(date.getTime())) {
+      return "Invalid Date";
+    }
+
     return new Intl.DateTimeFormat('id-ID', {
       day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
+      // hour: '2-digit', minute: '2-digit' // Opsional: matikan jam jika hanya butuh tanggal
     }).format(date);
   }
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (session?.user?.cid) {
+        try {
+          const cid = session.user.cid;
+
+          // 1. Fetch Solo Endorsement
+          // @ts-ignore
+          const soloRes = await api.api.training.solo[cid].get()
+
+          // 2. Fetch Active Training (Progress)
+          // @ts-ignore
+          const trainRes = await api.api.training.active[cid].get()
+
+          // 3. Fetch Exams (Untuk cari yang pending)
+          const examRes = await api.api.exams.get({ $query: { cid } })
+
+          // --- SET STATE SOLO ---
+          if (soloRes.data?.status === 'success') {
+            setActiveSolo(soloRes.data.data)
+          }
+
+          // --- SET STATE TRAINING ---
+          if (trainRes.data?.status === 'success') {
+            setActiveTraining(trainRes.data.data)
+          }
+
+          // --- SET STATE PENDING EXAM ---
+          if (examRes.data?.status === 'success' && examRes.data?.data) {
+            // Cari ujian yang: 
+            // 1. Tidak Terkunci (Available) 
+            // 2. Belum Lulus (Not Passed)
+            const nextExam = examRes.data.data.find((e: any) =>
+              !e.isLocked && e.lastAttempt?.status !== 'PASSED'
+            );
+            setPendingExam(nextExam)
+          }
+
+        } catch (e) {
+          console.error("Dashboard fetch error", e)
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+
+    if (status === "authenticated") loadDashboardData()
+  }, [session, status])
+
+  // --- LOGIC PERSENTASE TRAINING ---
+  const trainingProgress = activeTraining ? Math.min((activeTraining._count.sessions / 10) * 100, 100) : 0
 
   // Tampilkan Skeleton loading jika data belum siap
   if (status === 'loading') {
@@ -34,9 +99,12 @@ export default function Page() {
     )
   }
   // Jika tidak ada session (seharusnya layout handle ini, tapi untuk jaga-jaga)
-  if (!session) redirect("/")
+  if (status === "unauthenticated" || !session) {
+    redirect("/")
+  }
   // Akses field custom kita melalui `session.user`
   const user = session.user
+
 
   return (
     <div className="space-y-6">
@@ -49,18 +117,18 @@ export default function Page() {
       </div>
 
       {/* Solo Endorsement */}
-      {activeSolo && (
-        <div role="alert" className="alert alert-info text-info-content border-none">
-          <CircleCheckBig />
+      {!loading && activeSolo && (
+        <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 shadow-sm">
+          <CircleCheckBig className="h-6 w-6 text-info" />
           <div className="flex flex-col w-full">
             <div className="flex justify-between items-center w-full">
               <h3 className="font-bold text-lg">Active Solo Endorsement</h3>
             </div>
             <div className="text-sm mt-1 opacity-90">
-              You are authorized to control <strong>{activeSolo.position}</strong> without supervision.
+              You are authorized to control <strong className="uppercase">{activeSolo.position}</strong> without supervision.
             </div>
-            <div className="text-xs mt-2 font-mono bg-white/20 p-2 rounded inline-block w-fit">
-              Expires: {formatDate(activeSolo.validUntil)}
+            <div className="text-xs mt-2 font-mono bg-base-100/50 p-2 rounded inline-block w-fit font-bold">
+              Expires: {activeSolo.validUntil ? formatDate(activeSolo.validUntil) : "Until Revoked"}
             </div>
           </div>
         </div>
@@ -107,32 +175,73 @@ export default function Page() {
         </div>
 
         {/* Placeholder Stats 1 */}
-        <div className="card bg-base-100 shadow-xl border border-base-200">
+        <div className="card bg-base-100 shadow-sm border border-base-200">
           <div className="card-body">
             <h2 className="card-title text-sm uppercase text-base-content/50">Training Progress</h2>
-            <div className="py-4 text-center">
-              <div className="radial-progress text-primary" style={{ "--value": 70 } as any} role="progressbar">
-                70%
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50">
+                <Loader2 className="animate-spin" />
+                <span className="text-xs">Loading data...</span>
               </div>
-              <p className="mt-2 text-sm font-semibold">S2 Tower Training</p>
-            </div>
-            <div className="card-actions justify-end">
-              <button className="btn btn-sm btn-ghost">View Details</button>
-            </div>
+            ) : activeTraining ? (
+              <>
+                <div className="py-4 text-center">
+                  <div
+                    className="radial-progress text-primary font-bold text-lg transition-all duration-1000"
+                    style={{ "--value": trainingProgress, "--size": "6rem" } as any}
+                    role="progressbar"
+                  >
+                    {activeTraining._count.sessions} {activeTraining._count.sessions === 1 ? "Session" : "Sessions"}
+                  </div>
+                  <p className="mt-4 text-sm font-semibold truncate" title={activeTraining.title}>
+                    {activeTraining.title}
+                  </p>
+                </div>
+                <div className="card-actions justify-end mt-auto">
+                  <button onClick={() => router.push('/dashboard/training')} className="btn btn-sm btn-ghost">
+                    View Log
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-8">
+                <p className="text-sm">No active training program.</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Placeholder Stats 2 */}
-        <div className="card bg-base-100 shadow-xl border border-base-200">
+        <div className="card bg-base-100 shadow-sm border border-base-200">
           <div className="card-body">
-            <h2 className="card-title text-sm uppercase text-base-content/50">Pending Exams</h2>
-            <div className="alert alert-warning text-sm">
-              <TriangleAlert />
-              <span>Basic Theory Exam needs your attention.</span>
-            </div>
-            <div className="card-actions justify-end mt-2">
-              <button className="btn btn-sm btn-primary">Start Exam</button>
-            </div>
+            <h2 className="card-title text-sm uppercase text-base-content/50">Exam Center</h2>
+
+            {loading ? (
+              <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin opacity-30" /></div>
+            ) : pendingExam ? (
+              <>
+                <div className="alert alert-warning text-sm bg-warning/10 border-warning/20 text-warning-content mt-2">
+                  <TriangleAlert className="w-5 h-5" />
+                  <span><b>{pendingExam.title}</b> is available to take.</span>
+                </div>
+                <div className="flex-1"></div> {/* Spacer */}
+                <div className="card-actions justify-end mt-4">
+                  <button
+                    onClick={() => router.push(`/dashboard/exams`)}
+                    className="btn btn-sm btn-primary w-full"
+                  >
+                    Start Exam
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center opacity-50 py-8">
+                <CircleCheckBig className="w-8 h-8 mb-2 text-success/50" />
+                <p className="text-sm">You&apos;re all caught up!</p>
+                <p className="text-xs">No pending exams.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
