@@ -24,6 +24,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime? // Auth.js menggunakan DateTime, bukan Boolean
   image         String?
+  role          AppRole   @default(MEMBER)
 
   // --- VATSIM Custom Fields ---
   cid          String       @unique
@@ -192,8 +193,9 @@ model Course {
   minRating   Int?
   isPublished Boolean @default(false)
 
-  modules  Module[]
-  progress CourseProgress[]
+  modules       Module[]
+  progress      CourseProgress[]
+  unlockedExams Exam[]           @relation("CourseToExam")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -215,15 +217,18 @@ model Module {
 }
 
 model Exam {
-  id           String @id @default(cuid())
-  moduleId     String @unique
-  title        String
-  passingScore Int    @default(80)
+  id             String  @id @default(cuid())
+  moduleId       String? @unique
+  title          String
+  passingScore   Int     @default(80)
+  prerequisiteId String?
+  prerequisite   Course? @relation("CourseToExam", fields: [prerequisiteId], references: [id])
+  questionCount  Int     @default(0)
 
   questions   Question[]
   submissions ExamSubmission[]
 
-  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  module Module? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
 }
 
 model Question {
@@ -350,4 +355,11 @@ enum SubmissionStatus {
 enum ModuleType {
   TEXT
   SLIDE
+}
+
+enum AppRole {
+  ADMIN
+  STAFF
+  MENTOR
+  MEMBER
 }

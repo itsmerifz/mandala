@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Elysia, t } from 'elysia'
 import { prisma } from '@/lib/prisma'
+import { AppRole } from '@root/prisma/generated'
 
 export const adminRoutes = new Elysia({ prefix: '/admin' })
   // --- 1. GRADING ROUTES ---
@@ -26,32 +27,106 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
         where: { id: params.id },
         include: {
           user: { select: { name: true, cid: true } },
-          exam: { include: { questions: { include: { options: true } } } },
-          answers: true
+          exam: { select: { title: true, passingScore: true } }, // Exam detail secukupnya saja
+
+          // FOKUS DI SINI:
+          answers: {
+            // Kita ambil detail pertanyaan dari sini, karena inilah soal yang didapat user
+            include: {
+              selectedOption: true,
+              question: {
+                include: { options: true } // Ambil opsi jawaban & kunci untuk ditampilkan
+              }
+            },
+            // Urutkan berdasarkan urutan soal asli biar rapi
+            orderBy: {
+              question: { order: 'asc' }
+            }
+          }
         }
       })
       if (!submission) return status(404, { status: 'error', message: 'Not found' })
       return { status: 'success', data: submission }
     } catch (err) {
-      return status(500, { status: 'error', message: `Server error, Message: ${err}` })
+      console.error(err)
+      return status(500, { status: 'error', message: 'Server error' })
     }
   })
 
   .post('/grading/submit', async ({ body, status }) => {
-    // ... (Logic grading sama seperti sebelumnya) ...
     try {
       const { submissionId, adminFeedback, gradedAnswers } = body;
-      for (const grade of gradedAnswers) {
-        await prisma.examAnswer.updateMany({
-          where: { submissionId, questionId: grade.questionId },
-          data: { pointsAwarded: grade.pointsAwarded, isCorrect: grade.isCorrect }
-        })
-      }
-      // Recalculate score logic here...
-      // (Agar ringkas saya singkat, pastikan logic hitung skor kamu ada disini)
-      return { status: 'success', data: { finalScore: 100, finalStatus: 'PASSED' } }
+
+      // 1. UPDATE NILAI MANUAL DULU
+      // (Loop update jawaban essay...)
+      await prisma.$transaction(
+        gradedAnswers.map((grade: any) =>
+          prisma.examAnswer.updateMany({
+            where: { submissionId, questionId: grade.questionId },
+            data: { pointsAwarded: grade.pointsAwarded, isCorrect: grade.isCorrect }
+          })
+        )
+      );
+
+      // 2. AMBIL DATA FRESH (SUMBER KEBENARAN)
+      const freshSubmission = await prisma.examSubmission.findUnique({
+        where: { id: submissionId },
+        include: {
+          exam: { select: { passingScore: true } },
+          // PENTING: Kita include 'question' di dalam 'answers'
+          // agar kita tahu bobot poin dari soal yang TERSIMPAN di sesi ini saja.
+          answers: {
+            include: {
+              question: { select: { points: true } }
+            }
+          }
+        }
+      });
+
+      if (!freshSubmission) return status(404, { status: 'error', message: 'Submission lost' });
+
+      // 3. HITUNG TOTAL POIN (LOGIKA BARU)
+
+      // A. Hitung Total Poin Maksimal (Penyebut)
+      // Hanya menjumlahkan poin dari soal yang ada di lembar jawaban ini
+      const totalPointsPossible = freshSubmission.answers.reduce(
+        (sum, ans) => sum + (ans.question?.points || 0),
+        0
+      );
+
+      // B. Hitung Poin Didapat (Pembilang)
+      const totalPointsEarned = freshSubmission.answers.reduce(
+        (sum, ans) => sum + (ans.pointsAwarded || 0),
+        0
+      );
+
+      // C. Hitung Persentase
+      // Cegah pembagian dengan nol
+      const finalScore = totalPointsPossible > 0
+        ? (totalPointsEarned / totalPointsPossible) * 100
+        : 0;
+
+      const roundedScore = parseFloat(finalScore.toFixed(2));
+      const finalStatus = roundedScore >= freshSubmission.exam.passingScore ? 'PASSED' : 'FAILED';
+
+      // 4. SIMPAN HASIL
+      await prisma.examSubmission.update({
+        where: { id: submissionId },
+        data: {
+          score: roundedScore,
+          status: finalStatus as any,
+          adminFeedback: adminFeedback
+        }
+      });
+
+      return {
+        status: 'success',
+        data: { finalScore: roundedScore, finalStatus: finalStatus }
+      };
+
     } catch (err) {
-      return status(500, { status: 'error', message: `Grading failed, Message: ${err}` })
+      console.error("Grading Error:", err);
+      return status(500, { status: 'error', message: 'Grading calculation failed' })
     }
   }, {
     body: t.Object({
@@ -227,5 +302,83 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
       code: t.String(), // e.g. "GND"
       action: t.Union([t.Literal('ADD'), t.Literal('REMOVE')]),
       issuerId: t.String()
+    })
+  })
+
+  // Mentor dan Role Management
+  .get('/list/mentors', async () => {
+    const mentors = await prisma.user.findMany({
+      where: {
+        // Ambil semua yang BUKAN member biasa
+        role: { in: ['MENTOR', 'STAFF', 'ADMIN'] }
+      },
+      select: { id: true, name: true, cid: true, ratingShort: true }
+    })
+    return { status: 'success', data: mentors }
+  })
+
+  .post('/members/role', async ({ body, status }) => {
+    try {
+      await prisma.user.update({
+        where: { cid: body.targetCid },
+        data: { role: body.role as AppRole }
+      })
+      return { status: 'success' }
+    } catch (e) {
+      console.error(e)
+      return status(500, { status: 'error', message: 'Failed to update role' })
+    }
+  }, {
+    body: t.Object({
+      targetCid: t.String(),
+      role: t.String() // 'MEMBER' | 'MENTOR' | 'STAFF' | 'ADMIN'
+    })
+  })
+  .post('/members/assign-mentor', async ({ body, status }) => {
+    try {
+      const { studentCid, mentorId } = body;
+
+      const student = await prisma.user.findUnique({ where: { cid: studentCid } });
+      if (!student) return status(404, { status: 'error', message: 'Student not found' });
+
+      // LOGIKA: 
+      // Kita cari Training yang sedang aktif (IN_PROGRESS). 
+      // Jika ada, update mentornya.
+      // Jika tidak ada, buat Training "General" baru.
+
+      const activeTraining = await prisma.training.findFirst({
+        where: {
+          studentId: student.id,
+          status: 'IN_PROGRESS'
+        }
+      });
+
+      if (activeTraining) {
+        // Update training yang ada
+        await prisma.training.update({
+          where: { id: activeTraining.id },
+          data: { mentorId: mentorId }
+        });
+      } else {
+        // Buat training baru
+        await prisma.training.create({
+          data: {
+            studentId: student.id,
+            mentorId: mentorId,
+            title: 'General Training', // Judul default
+            status: 'IN_PROGRESS'
+          }
+        });
+      }
+
+      return { status: 'success' }
+    } catch (e) {
+      console.error(e)
+      return status(500, { status: 'error', message: 'Failed to assign mentor' })
+    }
+  }, {
+    body: t.Object({
+      studentCid: t.String(),
+      mentorId: t.String() // ID internal (CUID) mentor
     })
   })

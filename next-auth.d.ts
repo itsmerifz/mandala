@@ -47,20 +47,15 @@ declare module "next-auth" {
     data: VATSIMData
   }
   interface User extends DefaultUser {
-    id: string
     cid: string
-    name: string
-    email: string
-    emailVerified?: Date | null
+    role: AppRole
     ratingId: number
     ratingShort: string
     ratingLong: string
-    region: string
-    division: string
-    subdivision: string
-
-    appRoles?: AppRoleInSession[]
-    appPermissions?: PrismaPermissionEnum[]
+    division: string | null
+    region: string | null
+    subdivision: string | null
+    rosterStatus: string
     vatsimPersonal?: VATSIMData['personal']
     vatsimDetails?: VATSIMData['vatsim']
   }
@@ -71,11 +66,13 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
-    userIdDb?: string
-    cid?: string
-    appRoles?: AppRoleInSession[]
-    appPermissions?: PrismaPermissionEnum[]
-    rawVatsimProfileData?: VATSIMData
-    permissionsLastUpdatedAt?: string | null
+    id: string
+    cid: string
+    role: AppRole
+    ratingId: number
+    ratingShort: string
+    ratingLong: string
+    division: string | null
+    rosterStatus: string
   }
 }

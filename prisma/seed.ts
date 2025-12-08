@@ -33,13 +33,15 @@ async function main() {
 
   // 3. Buat EXAM
   const examBasic = await prisma.exam.upsert({
-    where: { moduleId: modTheory.id }, // Relation One-to-One
-    update: {},
+    where: { id: 'exam_s2_basic' }, // Kita pakai ID manual biar gampang
+    update: {
+      prerequisiteId: 'crs_s2_tower' // <--- LINK KE COURSE ID
+    },
     create: {
       id: 'exam_s2_basic',
-      moduleId: modTheory.id,
+      prerequisiteId: 'crs_s2_tower', // <--- SYARATNYA COURSE INI
       title: 'Basic Tower Theory Exam',
-      passingScore: 80, // Persen
+      passingScore: 80,
     }
   })
 

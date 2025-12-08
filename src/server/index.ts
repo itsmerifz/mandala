@@ -5,6 +5,7 @@ import { trainingRoutes } from './modules/training'
 import { examRoutes } from './modules/exam'
 import { adminRoutes } from './modules/admin'
 import { lmsRoutes } from './modules/lms'
+import { uploadRoutes } from './modules/upload'
 
 export const app = new Elysia({ prefix: '/api' })
   .onError(({ code, error }) => {
@@ -22,6 +23,7 @@ export const app = new Elysia({ prefix: '/api' })
   .use(examRoutes)
   .use(adminRoutes)
   .use(lmsRoutes)
+  .use(uploadRoutes)
 
 export type App = typeof app
 

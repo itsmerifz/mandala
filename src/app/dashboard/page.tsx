@@ -9,6 +9,7 @@ import { CircleCheckBig, TriangleAlert } from "lucide-react"
 
 export default function Page() {
   const { data: session, status } = useSession()
+  console.log(session)
 
   const activeSolo = {
     position: "WIII_TWR",
@@ -42,7 +43,7 @@ export default function Page() {
       {/* Header Welcome */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user.name.split(' ')[0]}! 👋</h1>
+          <h1 className="text-3xl font-bold">Welcome back, {user.name?.split(' ')[0]}!👋</h1>
           <p className="text-base-content/70">Here is what&apos;s happening correctly at IDvACC.</p>
         </div>
       </div>

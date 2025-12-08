@@ -16,16 +16,21 @@ export default function CourseEditor() {
   // Form state untuk active module
   const [modTitle, setModTitle] = useState("")
   const [modContent, setModContent] = useState("")
+  const [modType, setModType] = useState("TEXT")
 
   const fetchCourse = async () => {
     // @ts-expect-error data error
     const { data } = await api.api.lms[courseId].get()
     if (data?.status === 'success') {
       setCourse(data.data)
-      // Jika sedang edit modul, update datanya juga
+      // Refresh active module data if selected
       if (activeModule) {
-        const updatedMod = data.data.modules.find((m: any) => m.id === activeModule.id)
-        if (updatedMod) setActiveModule(updatedMod)
+        const updated = data.data.modules.find((m: any) => m.id === activeModule.id)
+        if (updated) {
+          setActiveModule(updated)
+          // Jangan overwrite state jika user sedang mengetik, 
+          // kecuali kita mau force sync. Untuk sekarang biarkan manual save.
+        }
       }
     }
     setLoading(false)
@@ -37,7 +42,11 @@ export default function CourseEditor() {
   const handleAddModule = async () => {
     const title = prompt("Enter Module Title:")
     if (!title) return
-    await api.api.lms.module.post({ courseId: courseId as string, title })
+    await api.api.lms.module.post({
+      courseId: courseId as string,
+      title,
+      type: "TEXT" // Default
+    })
     fetchCourse()
   }
 
@@ -46,6 +55,7 @@ export default function CourseEditor() {
     setActiveModule(mod)
     setModTitle(mod.title)
     setModContent(mod.content || "")
+    setModType(mod.type || "TEXT") // Set tipe saat dipilih
   }
 
   // Handler Save Module
@@ -54,7 +64,8 @@ export default function CourseEditor() {
     setSaving(true)
     await api.api.lms.module[activeModule.id].put({
       title: modTitle,
-      content: modContent
+      content: modContent,
+      type: modType // Kirim tipe yang dipilih
     })
     setSaving(false)
     alert("Saved!")
@@ -129,13 +140,55 @@ export default function CourseEditor() {
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
-              <div className="flex-1 p-0">
-                <textarea
-                  className="w-full h-full p-6 resize-none focus:outline-none font-mono text-sm leading-relaxed"
-                  placeholder="# Write your content here using Markdown..."
-                  value={modContent}
-                  onChange={e => setModContent(e.target.value)}
-                ></textarea>
+
+              {/* --- TOGGLE TYPE --- */}
+              <div className="flex border-b border-base-200">
+                <button
+                  onClick={() => setModType("TEXT")}
+                  className={`flex-1 py-3 text-sm font-bold ${modType === 'TEXT' ? 'bg-base-100 border-b-2 border-primary text-primary' : 'bg-base-200/50 text-base-content/60'}`}
+                >
+                  📝 Text / Markdown
+                </button>
+                <button
+                  onClick={() => setModType("SLIDE")}
+                  className={`flex-1 py-3 text-sm font-bold ${modType === 'SLIDE' ? 'bg-base-100 border-b-2 border-primary text-primary' : 'bg-base-200/50 text-base-content/60'}`}
+                >
+                  🖥️ Google Slides
+                </button>
+              </div>
+
+              <div className="flex-1 p-0 relative">
+                {modType === "TEXT" ? (
+                  <textarea
+                    className="w-full h-full p-6 resize-none focus:outline-none font-mono text-sm leading-relaxed"
+                    placeholder="# Write your content here using Markdown..."
+                    value={modContent}
+                    onChange={e => setModContent(e.target.value)}
+                  ></textarea>
+                ) : (
+                  <div className="p-8 flex flex-col items-center justify-center h-full gap-4">
+                    <div className="form-control w-full max-w-lg">
+                      <label className="label font-bold">Google Slides Embed URL</label>
+                      <input
+                        type="text"
+                        className="input input-bordered w-full"
+                        placeholder='https://docs.google.com/presentation/d/e/.../embed?start=false...'
+                        value={modContent}
+                        onChange={e => setModContent(e.target.value)}
+                      />
+                      <div className="label text-xs opacity-60">
+                        Go to File &gt; Share &gt; Publish to web &gt; Embed &gt; Copy the &quot;src&quot; link inside the iframe tag.
+                      </div>
+                    </div>
+
+                    {/* Preview Iframe */}
+                    {modContent.includes("docs.google.com") && (
+                      <div className="w-full aspect-video border rounded-xl overflow-hidden shadow-lg mt-4">
+                        <iframe src={modContent} className="w-full h-full" allowFullScreen></iframe>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           ) : (

@@ -5,6 +5,7 @@ import { useState } from "react"
 import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { User } from "lucide-react"
 
 export default function MentoringPage() {
   const { data: session } = useSession()
@@ -90,33 +91,32 @@ export default function MentoringPage() {
           <div className="card bg-base-100 shadow-sm border border-base-200">
             <div className="card-body">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <User />
                 Session Details
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <label className="label font-medium">Student CID</label>
+                <label className="input">
+                  <span className="label font-medium">Student CID</span>
                   <input
                     type="text"
                     placeholder="1000002"
-                    className="input input-bordered font-mono"
                     required
                     value={formData.studentCid}
                     onChange={e => setFormData({ ...formData, studentCid: e.target.value })}
                   />
-                </div>
-                <div className="form-control">
-                  <label className="label font-medium">Position</label>
+                </label>
+                <label className="input">
+                  <span className="label font-medium">Position</span>
                   <input
                     type="text"
                     placeholder="WIII_TWR"
-                    className="input input-bordered font-mono uppercase"
+                    className="uppercase"
                     required
                     value={formData.position}
                     onChange={e => setFormData({ ...formData, position: e.target.value })}
                   />
-                </div>
+                </label>
               </div>
             </div>
           </div>

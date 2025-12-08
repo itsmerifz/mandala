@@ -83,7 +83,18 @@ export default function CoursePlayerPage() {
           <div className="divider"></div>
 
           {/* Render Markdown Content */}
-          <ReactMarkdown>{activeModule.content}</ReactMarkdown>
+          {activeModule.type === 'SLIDE' ? (
+            <div className="w-full aspect-video border rounded-xl overflow-hidden shadow-sm">
+              <iframe
+                src={activeModule.content}
+                className="w-full h-full"
+                allowFullScreen={true}
+              // allow="autoplay; encrypted-media"
+              ></iframe>
+            </div>
+          ) : (
+            <ReactMarkdown>{activeModule.content}</ReactMarkdown>
+          )}
         </div>
 
         {/* Footer Navigation */}

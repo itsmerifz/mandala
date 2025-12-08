@@ -1,14 +1,16 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client" // Eden Client
 import { useSession } from "next-auth/react"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import ReactMarkdown from "react-markdown" // Opsional: install 'react-markdown' kalau mau konten module rapi
 
 export default function TakeExamPage() {
-  const params = useParams()
+  const { submissionId } = useParams()
   const { data: session } = useSession()
   const router = useRouter()
 
@@ -16,26 +18,92 @@ export default function TakeExamPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const examId = Array.isArray(params.examId) ? params.examId[0] : params.examId
   const userId = session?.user?.id
 
   // State Jawaban: { "questionId": "optionId" atau "text answer" }
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const storageKey = `autosave_${examId}_${userId}`
+  const storageKey = `autosave_${submissionId}_${userId}`
+
+  const renderers = {
+    // 1. Tangani Link (a tag)
+    a: ({ ...props }: any) => {
+      const url = props.href || "";
+      const isPdf = url.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+        return (
+          <span className="my-4 block border rounded-xl overflow-hidden bg-base-200 w-full">
+            {/* Header kecil biar user tau ini file apa */}
+            <span className="p-2 bg-base-300 text-xs font-bold flex justify-between items-center px-4">
+              <span>📄 PDF Attachment</span>
+              <a href={url} target="_blank" rel="noopener noreferrer" className="link link-primary">
+                Open in New Tab ↗
+              </a>
+            </span>
+
+            {/* IFRAME PDF VIEWER */}
+            {/* Kita pakai Google Docs Viewer sebagai fallback yang handal, 
+                        atau native iframe jika browser support */}
+            <iframe
+              src={url}
+              className="w-full h-auto"
+              title="PDF Viewer"
+            >
+              {/* Fallback kalau browser gak support PDF embed */}
+              <span className="p-4 text-center block">
+                Unable to display PDF. <a href={url} className="link">Download here</a>
+              </span>
+            </iframe>
+          </span>
+        )
+      }
+
+      // Link biasa
+      return <a {...props} target="_blank" rel="noopener noreferrer" className="link link-info" />
+    },
+
+    // 2. Tangani Gambar (img tag)
+    img: ({ ...props }: any) => (
+      <Image
+        {...props}
+        className="max-w-full h-auto rounded-lg border my-2 shadow-sm"
+        alt={props.alt || "Question Image"}
+      />
+    )
+  }
 
   // 1. Fetch Soal
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        const { data } = await api.api.exams[examId as string].get()
-        if (data && data.status === 'success') {
-          setExam(data.data)
+        const { data } = await api.api.exams.submission[submissionId].get()
 
-          if (typeof window !== 'undefined' && userId) {
-            const savedAnswers = localStorage.getItem(storageKey);
+        if (data && data.status === 'success') {
+          const sub = data.data
+
+          // Set Exam Data
+          setExam({
+            title: sub.exam.title,
+            module: sub.exam.module,
+            passingScore: sub.exam.passingScore,
+            questions: sub.answers.map((ans: any) => ({
+              id: ans.question.id,
+              text: ans.question.text,
+              type: ans.question.type,
+              points: ans.question.points,
+              options: ans.question.options
+            }))
+          })
+
+          // Restore Jawaban (Hanya sekali saat load)
+          // Kita gunakan 'typeof window' check di sini
+          if (typeof window !== 'undefined') {
+            // Gunakan kunci storage yang dikomputasi saat itu juga
+            const key = `autosave_${submissionId}_${userId}`
+            const savedAnswers = localStorage.getItem(key);
             if (savedAnswers) {
-              console.log("📂 Restoring answers from local storage...");
+              console.log("📂 Restoring answers...");
               setAnswers(JSON.parse(savedAnswers));
               setLastSaved(new Date());
             }
@@ -47,8 +115,8 @@ export default function TakeExamPage() {
         setLoading(false)
       }
     }
-    if (examId) fetchExam()
-  }, [examId, storageKey, userId])
+    if (submissionId) fetchExam()
+  }, [userId, submissionId])
 
   // 2. Handle Input Jawaban
   const handleAnswerChange = (questionId: string, value: string) => {
@@ -75,18 +143,17 @@ export default function TakeExamPage() {
         value: val
       }));
 
+      // --- PERBAIKAN DI SINI ---
+      // Kita kirim submissionId, BUKAN examId/userId
       const res = await api.api.exams.submit.post({
-        examId: examId as string,
-        userId: session?.user?.id as string,
+        submissionId: submissionId as string,
         answers: formattedAnswers
       })
+      // -------------------------
 
       if (res.data && res.data.status === 'success') {
-        // --- PENTING: BERSIHKAN AUTOSAVE SETELAH SUKSES ---
         localStorage.removeItem(storageKey);
-        // --------------------------------------------------
 
-        // Gunakan type assertion
         const resultData = res.data.data as any;
         alert(`Exam Submitted! Result: ${resultData.result}`)
         router.push('/dashboard/exams')
@@ -95,7 +162,9 @@ export default function TakeExamPage() {
         alert("Submission failed: " + (errorData?.message || "Unknown error"))
       }
     } catch (err) {
-      alert(`Error submitting exam. Please check your connection. Message: ${err}`)
+      // Tampilkan error asli untuk debugging
+      console.error(err);
+      alert(`Error submitting exam: ${err}`)
     } finally {
       setSubmitting(false)
     }
@@ -108,18 +177,36 @@ export default function TakeExamPage() {
     <div className="max-w-4xl mx-auto space-y-8 pb-20 relative">
       {/* Header */}
       <div className="text-center space-y-2">
-        <div className="badge badge-primary badge-outline">{exam.module.title}</div>
+        {/* Cek dulu apakah exam.module ada. Jika tidak, tampilkan label generic */}
+        {exam.module ? (
+          <div className="badge badge-primary badge-outline">{exam.module.title}</div>
+        ) : (
+          <div className="badge badge-secondary badge-outline">Final Exam</div>
+        )}
+
         <h1 className="text-3xl font-bold">{exam.title}</h1>
         <p className="text-base-content/60">Passing Score: {exam.passingScore}%</p>
       </div>
 
       {/* Module Content (Bacaan) */}
-      {exam.module.content && (
+      {exam.module?.content && (
         <div className="card bg-base-100 shadow-sm border border-base-200">
           <div className="card-body prose max-w-none">
             <h2 className="card-title">Study Material</h2>
-            <div className="bg-base-200/50 p-4 rounded-lg text-sm whitespace-pre-wrap">
-              {exam.module.content}
+            <div className="bg-base-200/50 p-4 rounded-lg text-sm">
+              {/* Cek tipe modul untuk render Markdown atau Slide */}
+              {exam.module.type === 'SLIDE' ? (
+                <div className="w-full aspect-video rounded-xl overflow-hidden shadow-sm">
+                  <iframe
+                    src={exam.module.content}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              ) : (
+                <ReactMarkdown components={renderers}>{exam.module.content}</ReactMarkdown>
+              )}
             </div>
           </div>
         </div>
@@ -133,7 +220,11 @@ export default function TakeExamPage() {
           <div key={q.id} className="card bg-base-100 shadow-sm border border-base-200">
             <div className="card-body">
               <h3 className="font-bold text-lg mb-4">
-                {index + 1}. {q.text}
+                <span className="mr-2">{index + 1}.</span>
+                {/* GANTI q.text STRING BIASA DENGAN MARKDOWN */}
+                <div className="inline-block align-top prose prose-sm max-w-none">
+                  <ReactMarkdown components={renderers}>{q.text}</ReactMarkdown>
+                </div>
                 <span className="text-xs font-normal opacity-50 ml-2">({q.points} pts)</span>
               </h3>
 

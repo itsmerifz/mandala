@@ -1,194 +1,312 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Elysia, t } from 'elysia'
 import { prisma } from '@/lib/prisma'
 
 export const examRoutes = new Elysia({ prefix: '/exams' })
+  // 1. GET LIST (Biarkan sama)
   .get('/', async ({ query }) => {
     try {
-      // Kita butuh CID user untuk cek progress dia
-      // (Nanti di frontend kita kirim ?cid=...)
-      const userCid = query.cid as string;
+      const { cid, mode } = query;
+      if (mode !== 'admin' && !cid) return { status: 'error', message: 'CID required' }
 
-      if (!userCid) {
-        return { status: 'error', message: 'CID required' }
-      }
+      const user = cid ? await prisma.user.findUnique({ where: { cid } }) : null;
 
       const exams = await prisma.exam.findMany({
+        where: mode === 'admin' ? {} : {}, // Tambah filter published jika perlu
         include: {
-          module: {
-            include: {
-              course: true // Ambil info Course (Rating min, judul)
-            }
-          },
-          _count: {
-            select: { questions: true } // Hitung jumlah soal
-          },
-          // Cek history submission user ini
-          submissions: {
-            where: {
-              user: { cid: userCid }
-            },
+          module: { include: { course: true } },
+          prerequisite: true,
+          _count: { select: { questions: true } },
+          submissions: user ? {
+            where: { userId: user.id },
             orderBy: { startedAt: 'desc' },
-            take: 1, // Ambil yang terakhir saja
-            select: {
-              status: true,
-              score: true,
-              startedAt: true
-            }
-          }
-        }
+            take: 1,
+            select: { status: true, score: true }
+          } : false
+        },
+        orderBy: { title: 'asc' }
       })
 
-      // Mapping data biar rapi di frontend
-      const mappedExams = exams.map(exam => ({
-        id: exam.id,
-        title: exam.title,
-        courseTitle: exam.module.course.title,
-        minRating: exam.module.course.minRating,
-        questionCount: exam._count.questions,
-        // Status user terhadap ujian ini
-        lastAttempt: exam.submissions[0] || null
+      const mappedExams = await Promise.all(exams.map(async (exam) => {
+        let isLocked = false;
+        if (user && exam.prerequisiteId) {
+          const progress = await prisma.courseProgress.findUnique({
+            where: { userId_courseId: { userId: user.id, courseId: exam.prerequisiteId } }
+          })
+          if (!progress?.isCompleted) isLocked = true;
+        }
+
+        // Total Bank Soal
+        const totalBankQuestions = exam._count.questions;
+
+        // Limit yang disetting Admin
+        const limitSetting = exam.questionCount;
+
+        // Tentukan angka yang ditampilkan ke user
+        // Jika limit diset (>0) DAN limit lebih kecil dari bank soal -> Pakai Limit
+        // Jika tidak -> Pakai Total Bank Soal
+        const displayQuestionCount = (limitSetting > 0 && limitSetting < totalBankQuestions)
+          ? limitSetting
+          : totalBankQuestions;
+
+        return {
+          id: exam.id,
+          title: exam.title,
+          passingScore: exam.passingScore,
+          context: exam.module ? `Module: ${exam.module.title}` : "Standalone",
+
+          // Gunakan variabel baru ini
+          questionCount: displayQuestionCount,
+
+          lastAttempt: exam.submissions?.[0] || null,
+          isLocked,
+          prerequisiteTitle: exam.prerequisite?.title
+        }
       }))
 
       return { status: 'success', data: mappedExams }
-
     } catch (error) {
-      console.error("Exam List Error:", error)
       return { status: 'error', message: "Failed to fetch exams" }
     }
+  }, {
+    query: t.Object({
+      cid: t.Optional(t.String()),
+      mode: t.Optional(t.String())
+    })
   })
-  .get('/:id', async ({ params, status }) => {
+
+  // 2. START EXAM (FIX: Resume Logic)
+  .post('/:id/start', async ({ params, body, status }) => {
     try {
+      const { userId } = body;
+      const examId = params.id;
+
+      // --- LOGIC BARU: CEK RESUME ---
+      // Cek apakah user punya ujian yang belum selesai (IN_PROGRESS) untuk exam ini?
+      const activeSubmission = await prisma.examSubmission.findFirst({
+        where: {
+          examId: examId,
+          userId: userId,
+          status: 'IN_PROGRESS'
+        }
+      });
+
+      // Jika ada, jangan buat baru! Kembalikan yang lama.
+      if (activeSubmission) {
+        console.log(`🔄 Resuming existing session: ${activeSubmission.id}`);
+        return { status: 'success', data: { submissionId: activeSubmission.id } };
+      }
+      // ------------------------------
+
+      // Jika tidak ada, buat baru (Randomize Soal)
       const exam = await prisma.exam.findUnique({
-        where: { id: params.id },
+        where: { id: examId },
+        include: { questions: true }
+      });
+
+      if (!exam) return status(404, { status: 'error', message: 'Exam not found' });
+
+      // Randomizer Logic
+      let selectedQuestions = exam.questions;
+      if (exam.questionCount > 0 && exam.questionCount < exam.questions.length) {
+        // Fisher-Yates Shuffle
+        for (let i = selectedQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [selectedQuestions[i], selectedQuestions[j]] = [selectedQuestions[j], selectedQuestions[i]];
+        }
+        selectedQuestions = selectedQuestions.slice(0, exam.questionCount);
+      }
+
+      const submission = await prisma.examSubmission.create({
+        data: {
+          examId,
+          userId,
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+          answers: {
+            create: selectedQuestions.map(q => ({
+              questionId: q.id
+            }))
+          }
+        }
+      });
+
+      return { status: 'success', data: { submissionId: submission.id } };
+
+    } catch (e) {
+      console.error(e);
+      return status(500, { status: 'error', message: 'Failed to start exam' });
+    }
+  }, {
+    body: t.Object({ userId: t.String() })
+  })
+
+  // 3. SUBMIT EXAM (FIX: Logic Grading User)
+  .post('/submit', async ({ body, status }) => {
+    try {
+      const { submissionId, answers } = body; // answers = [{ questionId, value }]
+
+      // Ambil Submission beserta soal yang SUDAH DITENTUKAN untuk user ini
+      const submission = await prisma.examSubmission.findUnique({
+        where: { id: submissionId },
         include: {
-          module: true, // Ambil materi bacaan
-          questions: {
-            orderBy: { order: 'asc' },
+          exam: true, // Butuh passingScore
+          answers: {
             include: {
-              // PENTING: Ambil opsi jawaban, TAPI JANGAN ambil field 'isCorrect'
-              // agar user tidak bisa mengintip jawaban di Inspect Element
-              options: {
-                select: { id: true, text: true }
+              question: {
+                include: { options: true } // Butuh kunci jawaban
               }
             }
           }
         }
-      })
-
-      if (!exam) return status(404, { status: 'error', message: 'Exam not found' })
-
-      return { status: 'success', data: exam }
-    } catch (err) {
-      return status(500, { status: 'error', message: `Server error, ${err}` })
-    }
-  })
-  .post('/submit', async ({ body, status }) => {
-    try {
-      const { examId, userId, answers } = body
-
-      // Ambil Kunci Jawaban dari Database
-      const exam = await prisma.exam.findUnique({
-        where: { id: examId },
-        include: { questions: { include: { options: true } } }
       });
-      if (!exam) return status(404, { status: 'error', message: 'Exam not found' })
 
-      let totalPoints = 0;
-      let earnedPoints = 0;
+      if (!submission) return status(404, { status: 'error', message: 'Submission not found' });
+
+      // Safety check: Jangan izinkan submit ulang jika sudah selesai
+      if (submission.status !== 'IN_PROGRESS') {
+        return status(400, { status: 'error', message: 'Exam already completed' });
+      }
+
+      let totalPointsPossible = 0;
+      let totalPointsEarned = 0;
       let hasEssay = false;
 
-      // Siapkan data jawaban untuk disimpan
-      const answersToSave = [];
+      const updatePromises = [];
 
-      // --- LOGIKA PENILAIAN ---
-      for (const question of exam.questions) {
-        totalPoints += question.points;
-        const userAnswer = answers.find((a: any) => a.questionId === question.id);
+      // Loop berdasarkan SOAL YANG ADA DI LEMBAR JAWABAN (Snapshot)
+      for (const ansRecord of submission.answers) {
+        const masterQuestion = ansRecord.question;
+        if (!masterQuestion) continue;
+
+        // Hitung total poin maksimal (Penyebut)
+        totalPointsPossible += masterQuestion.points;
+
+        // Cari jawaban user dari payload frontend
+        const userAnswerInput = answers.find((a: any) => a.questionId === masterQuestion.id);
+        const userValue = userAnswerInput?.value || null;
 
         let isCorrect = false;
         let pointsAwarded = 0;
 
-        if (question.type === 'ESSAY') {
+        // --- LOGIKA PENILAIAN ---
+        if (masterQuestion.type === 'ESSAY') {
           hasEssay = true;
-          isCorrect = false; // Essay dianggap salah dulu sampai dinilai admin
-          // Simpan jawaban teks
-          answersToSave.push({
-            questionId: question.id,
-            textAnswer: userAnswer?.value || "",
-            isCorrect: null, // Null artinya butuh review
-            pointsAwarded: 0
-          });
-        } else {
-          // Logika Pilihan Ganda / True False
-          // Cari opsi yang benar di database
-          const correctOption = question.options.find(o => o.isCorrect);
+          // Essay nilainya 0 dulu, status Pending
+          isCorrect = false;
+          pointsAwarded = 0;
 
-          // Cek apakah user memilih opsi yang benar
-          if (userAnswer && userAnswer.value === correctOption?.id) {
+          updatePromises.push(
+            prisma.examAnswer.update({
+              where: { id: ansRecord.id },
+              data: {
+                textAnswer: userValue,
+                isCorrect: null, // Null = Pending Review
+                pointsAwarded: 0
+              }
+            })
+          );
+        } else {
+          // Pilihan Ganda / True False
+          const correctOption = masterQuestion.options.find(o => o.isCorrect);
+
+          // Cek Jawaban (Pastikan value tidak null)
+          if (userValue && correctOption && userValue === correctOption.id) {
             isCorrect = true;
-            pointsAwarded = question.points;
-            earnedPoints += pointsAwarded;
+            pointsAwarded = masterQuestion.points;
           }
 
-          answersToSave.push({
-            questionId: question.id,
-            selectedOptionId: userAnswer?.value || null,
-            isCorrect: isCorrect,
-            pointsAwarded: pointsAwarded
-          });
+          // Tambahkan ke Pembilang
+          totalPointsEarned += pointsAwarded;
+
+          updatePromises.push(
+            prisma.examAnswer.update({
+              where: { id: ansRecord.id },
+              data: {
+                selectedOptionId: userValue,
+                isCorrect: isCorrect,
+                pointsAwarded: pointsAwarded
+              }
+            })
+          );
         }
       }
 
-      // Hitung Skor Akhir (0-100)
-      const finalScore = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+      // Hitung Skor Akhir
+      // Jika totalPointsPossible 0 (misal soal 0), skor 0.
+      const finalScore = totalPointsPossible > 0
+        ? (totalPointsEarned / totalPointsPossible) * 100
+        : 0;
 
-      // Tentukan Status Akhir
+      const roundedScore = parseFloat(finalScore.toFixed(2));
+
+      // Tentukan Status
       let finalStatus = 'FAILED';
       if (hasEssay) {
         finalStatus = 'PENDING_REVIEW';
-      } else if (finalScore >= exam.passingScore) {
+      } else if (roundedScore >= submission.exam.passingScore) {
         finalStatus = 'PASSED';
       }
 
-      // const finalScore = 100
-      // const finalStatus = 'PASSED'
-      // const submissionId = "dummy_id"
-
-      // Simpan ke Database
-      const submission = await prisma.examSubmission.create({
-        data: {
-          examId,
-          userId, // Pastikan ini User ID (CUID), bukan CID!
-          score: parseFloat(finalScore.toFixed(2)),
-          status: finalStatus as any, // Cast enum
-          completedAt: new Date(),
-          answers: {
-            create: answersToSave
+      // Eksekusi Database (Parallel)
+      await prisma.$transaction([
+        ...updatePromises,
+        prisma.examSubmission.update({
+          where: { id: submissionId },
+          data: {
+            score: roundedScore,
+            status: finalStatus as any,
+            completedAt: new Date()
           }
-        }
-      });
+        })
+      ]);
+
+      console.log(`✅ USER SUBMIT: Score ${roundedScore} (${finalStatus}) | Essay: ${hasEssay}`);
 
       return {
         status: 'success',
         data: {
-          submissionId: submission.id,
+          submissionId,
           result: finalStatus,
-          score: finalScore
+          score: roundedScore
         }
       };
 
     } catch (err) {
-      console.error(err);
+      console.error("Submit Error:", err);
       return status(500, { status: 'error', message: 'Failed to submit exam' });
     }
   }, {
     body: t.Object({
-      examId: t.String(),
-      userId: t.String(),
+      submissionId: t.String(),
       answers: t.Array(t.Object({
         questionId: t.String(),
         value: t.String()
       }))
     })
+  })
+
+  // ... (Endpoint lainnya seperti GET submission/:id, Create, dll biarkan sama) ...
+  // Pastikan endpoint GET submission/:id ada di file ini ya
+  .get('/submission/:id', async ({ params, status }) => {
+    try {
+      const submission = await prisma.examSubmission.findUnique({
+        where: { id: params.id },
+        include: {
+          exam: { include: { module: true } },
+          answers: {
+            include: {
+              question: {
+                include: {
+                  options: { select: { id: true, text: true } }
+                }
+              }
+            }
+          }
+        }
+      });
+      if (!submission) return status(404, { status: 'error', message: 'Not found' });
+      return { status: 'success', data: submission };
+    } catch (e) { return status(500, { status: 'error', message: 'Error' }) }
   })

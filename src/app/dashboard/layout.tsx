@@ -41,7 +41,7 @@ export default async function DashboardLayout({
         <label htmlFor="dashboard-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
 
         {/* Kita panggil Client Component di sini untuk isi sidebarnya */}
-        <SidebarContent version={APP_VERSION} />
+        <SidebarContent version={APP_VERSION} user={session.user} />
 
       </div>
     </div>

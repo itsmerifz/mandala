@@ -1,29 +1,32 @@
-
 "use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { SignOutAction } from "@/lib/actions"
-import { GraduationCap, ClipboardList, ListCheck, UserRoundCog, ShieldUser, Users, LayoutDashboard, BookLock } from "lucide-react"
+import { GraduationCap, ClipboardList, ListCheck, UserRoundCog, ShieldUser, Users, LayoutDashboard, BookLock, FileLock2, NotebookText } from "lucide-react"
+
+interface SidebarProps {
+  version: string
+  user: {
+    name?: string | null
+    role: string
+  }
+}
 
 // Menerima version sebagai props dari Server Component
-export default function SidebarContent({ version }: { version: string }) {
+export default function SidebarContent({ version, user }: SidebarProps) {
   const pathname = usePathname()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const role = user.role
+
+  const CAN_ACCESS_ADMIN = (["ADMIN", "STAFF"] as string[]).includes(role)
+  const CAN_ACCESS_MENTORING = (["ADMIN", "STAFF", "MENTOR"] as string[]).includes(role)
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
-    try {
-      // Panggil Server Action
-      await SignOutAction()
-
-      // Catatan: Kode di bawah ini mungkin tidak akan tereksekusi 
-      // karena 'redirect' di server action akan langsung memindah halaman.
-    } catch (error) {
-      console.error("Logout failed", error)
-      setIsLoggingOut(false)
-    }
+    try { await SignOutAction() }
+    catch { setIsLoggingOut(false) }
   }
 
   // Helper active state
@@ -77,26 +80,46 @@ export default function SidebarContent({ version }: { version: string }) {
         </Link>
       </li>
       {/* Tambahkan link lain disini jika ada */}
-      <li>
-        <Link href="/dashboard/mentoring" className={isActive("/dashboard/mentoring")}>
-          <UserRoundCog />
-          Instructor Station
-        </Link>
-      </li>
+      {
+        CAN_ACCESS_MENTORING && (
+          <li>
+            <Link href="/dashboard/mentoring" className={isActive("/dashboard/mentoring")}>
+              <UserRoundCog />
+              Mentoring Log
+            </Link>
+          </li>
+        )
+      }
 
-      <li className="menu-title mt-4">Admin Console</li>
-      <li>
-        <Link href="/dashboard/admin/members" className={isActive("/dashboard/admin/members")}>
-          <ShieldUser />
-          Manage Members
-        </Link>
-      </li>
-      <li>
-        <Link href="/dashboard/admin/courses" className={isActive("/dashboard/admin/courses")}>
-          <BookLock />
-          Manage Course
-        </Link>
-      </li>
+      {
+        CAN_ACCESS_ADMIN && (
+          <>
+            <li className="menu-title mt-4">Admin Console</li>
+            <li>
+              <Link href="/dashboard/admin/members" className={isActive("/dashboard/admin/members")}>
+                <ShieldUser />
+                Member Manager
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/admin/courses" className={isActive("/dashboard/admin/courses")}>
+                <NotebookText />
+                Course Manager
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/admin/grading" className={isActive("/dashboard/admin/grading")}>
+                <FileLock2 />
+                Grading Manager
+              </Link>
+            </li>
+            <li>
+
+              <Link href="/dashboard/admin/exams"><BookLock /> Exam Manager</Link>
+            </li>
+          </>
+        )
+      }
       {/* Spacer untuk dorong footer ke bawah */}
       <div className="mt-auto"></div>
 
