@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { SignOutAction } from "@/lib/actions"
-import { GraduationCap, ClipboardList, ListCheck, UserRoundCog, ShieldUser, Users, LayoutDashboard, BookLock, FileLock2, NotebookText } from "lucide-react"
+import { GraduationCap, ClipboardList, ListCheck, UserRoundCog, ShieldUser, Users, LayoutDashboard, BookLock, FileLock2, NotebookText,ShieldCheck } from "lucide-react"
 
 interface SidebarProps {
   version: string
@@ -114,8 +114,16 @@ export default function SidebarContent({ version, user }: SidebarProps) {
               </Link>
             </li>
             <li>
-
-              <Link href="/dashboard/admin/exams"><BookLock /> Exam Manager</Link>
+              <Link href="/dashboard/admin/exams" className={isActive("/dashboard/admin/exams")}>
+              <BookLock /> 
+              Exam Manager
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/admin/verify" className={isActive("/dashboard/admin/verify")}>
+                <ShieldCheck/>
+                Verify Code
+              </Link>
             </li>
           </>
         )

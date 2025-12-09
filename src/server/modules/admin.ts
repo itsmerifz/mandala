@@ -334,6 +334,7 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
       role: t.String() // 'MEMBER' | 'MENTOR' | 'STAFF' | 'ADMIN'
     })
   })
+
   .post('/members/assign-mentor', async ({ body, status }) => {
     try {
       const { studentCid, mentorId } = body;
@@ -386,6 +387,7 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
       mentorId: t.String() // ID internal (CUID) mentor
     })
   })
+  
   .post('/members/assign-solo', async ({ body, status }) => {
     try {
       const { studentCid, position, validFrom, validUntil } = body;
@@ -441,7 +443,6 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
     })
   })
 
-  // 5. Revoke Solo Endorsement (Hapus Izin)
   .post('/members/revoke-solo', async ({ body, status }) => {
     try {
       // Cari active training student ini
@@ -465,4 +466,38 @@ export const adminRoutes = new Elysia({ prefix: '/admin' })
     }
   }, {
     body: t.Object({ studentCid: t.String() })
+  })
+
+  .post('/verify-code', async ({ body, status }) => {
+    try {
+      const { code } = body;
+
+      // Cari submission berdasarkan kode unik
+      const submission = await prisma.examSubmission.findFirst({
+        where: {
+          generatedCode: code.trim() // Pastikan tidak ada spasi
+        },
+        include: {
+          user: {
+            select: { name: true, cid: true, email: true, ratingShort: true, ratingLong: true }
+          },
+          exam: {
+            select: { title: true }
+          }
+        }
+      })
+
+      if (!submission) {
+        return status(404, { status: 'error', message: 'Invalid Code. No record found.' })
+      }
+
+      return { status: 'success', data: submission }
+    } catch (e) {
+      console.error(e)
+      return status(500, { status: 'error', message: 'Server error during verification' })
+    }
+  }, {
+    body: t.Object({
+      code: t.String()
+    })
   })
