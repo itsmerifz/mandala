@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { api } from "@/lib/client"
+import { toast } from "sonner"
 
 interface FileUploaderProps {
   onUploadComplete: (url: string, type: 'image' | 'file') => void
@@ -25,11 +26,11 @@ export default function FileUploader({ onUploadComplete }: FileUploaderProps) {
       if (data && data.status === 'success') {
         onUploadComplete(data.url, data.type as 'image' | 'file')
       } else {
-        alert("Upload failed")
+        toast.error("Upload failed")
       }
     } catch (err) {
       console.error(err)
-      alert("Upload error")
+      toast.error("Upload error")
     } finally {
       setUploading(false)
     }

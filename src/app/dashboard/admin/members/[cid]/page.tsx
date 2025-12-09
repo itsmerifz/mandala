@@ -6,6 +6,8 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { toast } from "sonner"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function AdminMemberDetail() {
   const { cid } = useParams()
@@ -79,7 +81,7 @@ export default function AdminMemberDetail() {
 
   // Handler Assign Solo
   const handleAssignSolo = async () => {
-    if (!soloForm.position) return alert("Position required");
+    if (!soloForm.position) return toast.warning("Position required");
 
     setProcessing(true)
     try {
@@ -89,11 +91,11 @@ export default function AdminMemberDetail() {
         validFrom: new Date(soloForm.validFrom).toISOString(),
         validUntil: new Date(soloForm.validUntil).toISOString()
       })
-      alert("Solo Endorsement Assigned!")
+      toast.success("Solo Endorsement Assigned!")
       fetchMember()
     } catch (e) {
       console.error(e)
-      alert("Failed")
+      toast.error("Failed")
     }
     finally { setProcessing(false) }
   }
@@ -107,7 +109,7 @@ export default function AdminMemberDetail() {
       fetchMember()
     } catch (e) {
       console.error(e)
-      alert("Failed")
+      toast.error("Failed")
     }
     finally { setProcessing(false) }
   }
@@ -123,11 +125,11 @@ export default function AdminMemberDetail() {
         targetCid: cid as string,
         role: selectedRole
       })
-      alert("Role updated!")
+      toast.success("Role updated!")
       fetchMember()
     } catch (e) {
       console.error(e)
-      alert("Failed")
+      toast.error("Failed")
     }
     finally { setProcessing(false) }
   }
@@ -139,11 +141,11 @@ export default function AdminMemberDetail() {
         studentCid: cid as string,
         mentorId: selectedMentor
       })
-      alert("Mentor assigned successfully!")
+      toast.success("Mentor assigned successfully!")
       fetchMember()
     } catch (e) {
       console.error(e)
-      alert("Failed to assign mentor")
+      toast.error("Failed to assign mentor")
     }
     finally { setProcessing(false) }
   }
@@ -162,7 +164,7 @@ export default function AdminMemberDetail() {
     setProcessing(false)
   }
 
-  if (loading) return <div className="p-10 text-center loading loading-spinner">Loading Profile...</div>
+  if (loading) return <LoadingSpinner text='Loading Profile...'/>
   if (!member) return <div className="p-10 text-center text-error">Member not found</div>
 
   const ALL_CERTS = ['DEL', 'GND', 'TWR', 'APP', 'CTR']
@@ -182,7 +184,7 @@ export default function AdminMemberDetail() {
               <span className="font-bold">{member.ratingLong} ({member.ratingShort})</span>
             </div>
             <div className="mt-2">
-              <div className={`badge ${member.rosterStatus === 'ACTIVE' ? 'badge-success' : 'badge-warning'} badge-outline`}>
+              <div className={`badge ${member.rosterStatus === 'ACTIVE' ? 'badge-success' : 'badge-warning'} badge-soft font-semibold`}>
                 {member.rosterStatus}
               </div>
             </div>
@@ -231,7 +233,7 @@ export default function AdminMemberDetail() {
                 <button
                   onClick={handleRoleUpdate}
                   disabled={processing || selectedRole === member.role}
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-soft"
                 >
                   Update
                 </button>
@@ -262,7 +264,7 @@ export default function AdminMemberDetail() {
                 <button
                   onClick={handleAssignMentor}
                   disabled={processing}
-                  className="btn btn-neutral"
+                  className="btn btn-secondary btn-soft"
                 >
                   Assign
                 </button>
@@ -283,7 +285,7 @@ export default function AdminMemberDetail() {
               Solo Endorsement
             </h2>
             {currentSolo && (
-              <div className="badge badge-warning text-xs font-bold animate-pulse">
+              <div className="badge badge-warning badge-soft text-xs font-bold animate-pulse">
                 ACTIVE: {currentSolo.position}
               </div>
             )}
@@ -312,11 +314,11 @@ export default function AdminMemberDetail() {
 
           <div className="card-actions justify-end mt-4">
             {currentSolo && (
-              <button onClick={handleRevokeSolo} disabled={processing} className="btn btn-error btn-outline btn-sm">
+              <button onClick={handleRevokeSolo} disabled={processing} className="btn btn-error btn-soft btn-sm">
                 Revoke Solo
               </button>
             )}
-            <button onClick={handleAssignSolo} disabled={processing} className="btn btn-warning btn-sm">
+            <button onClick={handleAssignSolo} disabled={processing} className="btn btn-warning btn-sm btn-soft">
               {currentSolo ? "Update Solo" : "Grant Solo"}
             </button>
           </div>

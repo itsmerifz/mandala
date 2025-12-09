@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import Link from "next/link"
 import { getRatingColor, getRatingLabel } from "@/lib/utils"
+import { toast } from "sonner"
 
 export default function AdminCourseList() {
   const [courses, setCourses] = useState<any[]>([])
@@ -35,7 +36,7 @@ export default function AdminCourseList() {
         modal?.close()
         fetchCourses()
       }
-    } catch (e) { alert("Failed to create") }
+    } catch (e) { toast.error("Failed to create") }
     finally { setIsCreating(false) }
   }
 
@@ -43,7 +44,7 @@ export default function AdminCourseList() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Course Manager</h1>
-        <button className="btn btn-primary btn-sm" onClick={() => (document.getElementById('create_modal') as any).showModal()}>
+        <button className="btn btn-primary btn-sm btn-soft" onClick={() => (document.getElementById('create_modal') as any).showModal()}>
           + New Course
         </button>
       </div>
@@ -54,14 +55,14 @@ export default function AdminCourseList() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-lg">{c.title}</h3>
-                <span className={`badge badge-sm ${c.isPublished ? 'badge-success' : 'badge-warning'}`}>
+                <span className={`badge badge-soft font-semibold badge-sm ${c.isPublished ? 'badge-success' : 'badge-warning'}`}>
                   {c.isPublished ? 'Published' : 'Draft'}
                 </span>
               </div>
               <p className="text-sm opacity-60 line-clamp-1">{c.description}</p>
             </div>
             <div className="flex items-center gap-4">
-              <span className={`badge ${getRatingColor(c.minRating)}`}>
+              <span className={`badge badge-soft font-semibold ${getRatingColor(c.minRating)}`}>
                 Min: {getRatingLabel(c.minRating).split(' - ')[0]}
               </span>
               <Link href={`/dashboard/admin/courses/${c.id}`} className="btn btn-sm btn-neutral">
@@ -104,7 +105,7 @@ export default function AdminCourseList() {
             <form method="dialog">
               <button className="btn">Cancel</button>
             </form>
-            <button className="btn btn-primary" onClick={handleCreate} disabled={isCreating}>
+            <button className="btn btn-primary btn-soft" onClick={handleCreate} disabled={isCreating}>
               {isCreating ? "Creating..." : "Create"}
             </button>
           </div>

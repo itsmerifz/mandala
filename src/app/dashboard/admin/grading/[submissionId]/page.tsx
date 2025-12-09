@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useParams, useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export default function GradingPage() {
   const { submissionId } = useParams()
@@ -61,7 +62,7 @@ export default function GradingPage() {
       })
 
       if (res.data?.status === 'success') {
-        alert(`Grading Complete! Score: ${res.data.data.finalScore}`)
+        toast.success(`Grading Complete! Score: ${res.data.data.finalScore}`)
 
         // Redirect ke list antrian (karena item ini sudah bukan 'pending' lagi, harusnya hilang dari list)
         router.push('/dashboard/admin/grading')
@@ -70,7 +71,7 @@ export default function GradingPage() {
         // router.refresh() 
       }
     } catch (e) {
-      alert(`Error saving grades, Message: ${e}`)
+      toast.error(`Error saving grades, Message: ${e}`)
     } finally {
       setSubmitting(false)
     }

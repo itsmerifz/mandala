@@ -54,6 +54,10 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([ratingId])
+  @@index([cid])
 }
 
 model Account {
@@ -181,6 +185,8 @@ model TrainingSession {
   createdAt DateTime @default(now())
 
   @@index([trainingId])
+  @@index([startTime])
+  @@index([mentorId])
 }
 
 // ==========================================
@@ -280,6 +286,8 @@ model ExamSubmission {
 
   @@index([userId])
   @@index([examId])
+  @@index([status])
+  @@index([generatedCode])
 }
 
 model ExamAnswer {

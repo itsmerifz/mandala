@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import Link from "next/link"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function AdminExamList() {
   const [exams, setExams] = useState<any[]>([])
@@ -49,7 +50,7 @@ export default function AdminExamList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={5} className="text-center">Loading...</td></tr> :
+            {loading ? <tr><td colSpan={5}><LoadingSpinner /></td></tr> :
               exams.map((exam) => (
                 <tr key={exam.id} className="hover">
                   <td className="font-bold">{exam.title}</td>

@@ -10,6 +10,7 @@ import { CircleCheckBig, Loader2, TriangleAlert } from "lucide-react"
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useRouter } from "next/navigation"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function Page() {
   const { data: session, status } = useSession()
@@ -180,10 +181,7 @@ export default function Page() {
             <h2 className="card-title text-sm uppercase text-base-content/50">Training Progress</h2>
 
             {loading ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50">
-                <Loader2 className="animate-spin" />
-                <span className="text-xs">Loading data...</span>
-              </div>
+              <LoadingSpinner text="Loading data..."/>
             ) : activeTraining ? (
               <>
                 <div className="py-4 text-center">
@@ -218,7 +216,7 @@ export default function Page() {
             <h2 className="card-title text-sm uppercase text-base-content/50">Exam Center</h2>
 
             {loading ? (
-              <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin opacity-30" /></div>
+              <LoadingSpinner />
             ) : pendingExam ? (
               <>
                 <div className="alert alert-warning text-sm alert-soft border-warning/20 mt-2">

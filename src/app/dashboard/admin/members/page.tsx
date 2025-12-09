@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import Link from "next/link"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function MemberManagementList() {
   const [members, setMembers] = useState<any[]>([])
@@ -50,7 +51,7 @@ export default function MemberManagementList() {
             </tr>
           </thead>
           <tbody>
-            {loading ? <tr><td colSpan={5} className="text-center py-4">Loading...</td></tr> :
+            {loading ? <tr><td colSpan={5}><LoadingSpinner /></td></tr> :
               filtered.map(m => (
                 <tr key={m.cid} className="hover">
                   <td className="font-bold">{m.name}</td>

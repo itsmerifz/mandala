@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useParams } from "next/navigation"
+import { toast } from "sonner"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function CourseEditor() {
   const { courseId } = useParams()
@@ -68,7 +70,7 @@ export default function CourseEditor() {
       type: modType // Kirim tipe yang dipilih
     })
     setSaving(false)
-    alert("Saved!")
+    toast.success("Saved!")
     fetchCourse()
   }
 
@@ -81,7 +83,7 @@ export default function CourseEditor() {
     setCourse({ ...course, isPublished: newStatus })
   }
 
-  if (loading) return <div>Loading Editor...</div>
+  if (loading) return <LoadingSpinner text="Loading Editor..."/>
   if (!course) return <div>Course not found</div>
 
   return (
@@ -94,7 +96,7 @@ export default function CourseEditor() {
         </div>
         <div className="flex gap-2">
           <button
-            className={`btn btn-sm ${course.isPublished ? 'btn-success text-white' : 'btn-ghost border-base-300'}`}
+            className={`btn btn-sm btn-soft ${course.isPublished ? 'btn-success' : 'btn-ghost border-base-300'}`}
             onClick={togglePublish}
           >
             {course.isPublished ? "Published" : "Draft Mode"}
@@ -136,7 +138,7 @@ export default function CourseEditor() {
                   value={modTitle}
                   onChange={e => setModTitle(e.target.value)}
                 />
-                <button onClick={handleSaveModule} disabled={saving} className="btn btn-sm btn-primary">
+                <button onClick={handleSaveModule} disabled={saving} className="btn btn-sm btn-primary btn-soft">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
               </div>
@@ -147,13 +149,13 @@ export default function CourseEditor() {
                   onClick={() => setModType("TEXT")}
                   className={`flex-1 py-3 text-sm font-bold ${modType === 'TEXT' ? 'bg-base-100 border-b-2 border-primary text-primary' : 'bg-base-200/50 text-base-content/60'}`}
                 >
-                  📝 Text / Markdown
+                  Text / Markdown
                 </button>
                 <button
                   onClick={() => setModType("SLIDE")}
                   className={`flex-1 py-3 text-sm font-bold ${modType === 'SLIDE' ? 'bg-base-100 border-b-2 border-primary text-primary' : 'bg-base-200/50 text-base-content/60'}`}
                 >
-                  🖥️ Google Slides
+                  Google Slides
                 </button>
               </div>
 

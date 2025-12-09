@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import Link from "next/link"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function GradingListPage() {
   const [pending, setPending] = useState<any[]>([])
@@ -38,7 +39,7 @@ export default function GradingListPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={4} className="text-center">Loading...</td></tr> :
+              {loading ? <tr><td colSpan={4}><LoadingSpinner /></td></tr> :
                 pending.length === 0 ? <tr><td colSpan={4} className="text-center opacity-50 py-8">No pending submissions.</td></tr> :
                   pending.map((sub) => (
                     <tr key={sub.id}>

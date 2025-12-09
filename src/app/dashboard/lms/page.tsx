@@ -6,6 +6,7 @@ import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { getRatingColor, getRatingLabel } from "@/lib/utils"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function LMSPage() {
   const { data: session } = useSession()
@@ -28,7 +29,7 @@ export default function LMSPage() {
         <p className="text-base-content/60 text-sm">Self-paced learning materials and theory.</p>
       </div>
 
-      {loading ? <div className="text-center py-10">Loading Academy...</div> :
+      {loading ? <LoadingSpinner text="Loading Academy..."/> :
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map(course => (
             <div key={course.id} className="card bg-base-100 shadow-sm border border-base-200 hover:shadow-md transition-all group">

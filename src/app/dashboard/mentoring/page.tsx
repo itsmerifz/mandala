@@ -5,6 +5,7 @@ import { useState } from "react"
 import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
 import { User } from "lucide-react"
+import { toast } from "sonner"
 
 export default function MentoringPage() {
   const { data: session } = useSession()
@@ -58,14 +59,14 @@ export default function MentoringPage() {
       })
 
       if (res.data?.status === 'success') {
-        alert("✅ Session Logged Successfully!")
+        toast.success("Session Logged Successfully!")
         setFormData({ ...formData, studentCid: "", summary: "", privateNote: "" })
       } else {
         const errorMsg = (res.data as any)?.message || "Unknown error occurred"
-        alert("❌ Failed: " + errorMsg)
+        toast.error("Failed: " + errorMsg)
       }
     } catch (err) {
-      alert(`Error: ${err}`)
+      toast.error(`Error: ${err}`)
     } finally {
       setIsLoading(false)
     }

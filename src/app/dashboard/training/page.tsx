@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function TrainingPage() {
   const { data: session } = useSession()
@@ -47,7 +48,7 @@ export default function TrainingPage() {
     return 'badge-info'; // Satisfactory
   }
 
-  if (loading) return <div className="p-10 text-center">Loading training history...</div>
+  if (loading) return <LoadingSpinner text="Loading training history..." />
 
   return (
     <div className="space-y-6">

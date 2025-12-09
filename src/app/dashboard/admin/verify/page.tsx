@@ -25,7 +25,6 @@ export default function VerifyCodePage() {
       if (res.data?.status === 'success') {
         setResult(res.data.data)
       } else {
-        // @ts-expect-error data error
         setError(res.error?.value?.message || "Invalid Code")
       }
     } catch (err) {
@@ -59,7 +58,7 @@ export default function VerifyCodePage() {
               disabled={loading || !code}
               className="btn btn-primary px-8 btn-soft"
             >
-              {loading ? <span className="loading loading-spinner"></span> : <Search className="w-5 h-5" />}
+              {loading ? <div className="loading loading-spinner"></div> : <Search className="w-5 h-5" />}
               Verify
             </button>
           </form>

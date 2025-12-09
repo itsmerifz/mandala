@@ -5,7 +5,9 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useParams } from "next/navigation"
-import ReactMarkdown from "react-markdown"
+import MarkdownView from "@/components/markdown_view"
+import { toast } from "sonner"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function ExamEditorPage() {
   const { examId } = useParams()
@@ -59,11 +61,11 @@ export default function ExamEditorPage() {
     try {
       // @ts-expect-error data error
       await api.api.exams[examId].put(settings)
-      alert("Settings updated!")
+      toast.success("Settings updated!")
       fetchExam()
     } catch (e) {
       console.error(e)
-      alert("Failed update settings")
+      toast.error("Failed update settings")
     }
     finally { setSavingSettings(false) }
   }
@@ -91,12 +93,11 @@ export default function ExamEditorPage() {
   }
 
   const handleSaveQuestion = async () => {
-    if (!questionForm.text) return alert("Question text required")
+    if (!questionForm.text) return toast.warning("Question text required")
 
     try {
       if (isEditingQ && editingQId) {
         // MODE UPDATE
-        // @ts-expect-error data error
         await api.api.exams.question[editingQId].put({
           text: questionForm.text,
           type: questionForm.type,
@@ -119,7 +120,7 @@ export default function ExamEditorPage() {
       fetchExam() // Refresh list
     } catch (e) {
       console.error(e)
-      alert("Failed to save question")
+      toast.error("Failed to save question")
     }
   }
 
@@ -140,7 +141,7 @@ export default function ExamEditorPage() {
     setNewQ({ ...newQ, options: opts })
   }
 
-  if (loading) return <div>Loading Editor...</div>
+  if (loading) return <LoadingSpinner text='Loading Editor...'/>
   if (!exam) return <div>Exam not found</div>
 
   return (
@@ -192,7 +193,7 @@ export default function ExamEditorPage() {
                 <div className="flex gap-2 flex-1">
                   <span className="badge badge-neutral badge-sm h-6 w-6 rounded-full shrink-0">{i + 1}</span>
                   <div className="font-bold w-full">
-                    <ReactMarkdown>{q.text}</ReactMarkdown>
+                    <MarkdownView content={q.text}/>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">

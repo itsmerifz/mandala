@@ -7,6 +7,8 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Timer, AlertCircle } from "lucide-react" // Import Icon
+import { toast } from "sonner"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function ExamListPage() {
   const router = useRouter()
@@ -54,12 +56,12 @@ export default function ExamListPage() {
             msg: res.error.value?.message || "You are in cooldown period."
           })
         } else {
-          alert("Failed to start exam")
+          toast.error("Failed to start exam")
         }
       }
     } catch (e) {
       console.error(e)
-      alert("System error")
+      toast.error("System error")
     }
   }
 
@@ -70,7 +72,7 @@ export default function ExamListPage() {
         <p className="text-base-content/60 text-sm">Validations & Rank Upgrades.</p>
       </div>
 
-      {loading ? <div className="text-center py-10">Loading...</div> :
+      {loading ? <LoadingSpinner /> :
         exams.length === 0 ? <div className="text-center py-10 opacity-50">No exams configured.</div> :
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

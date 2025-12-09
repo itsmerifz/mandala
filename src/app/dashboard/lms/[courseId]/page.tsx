@@ -5,8 +5,9 @@ import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import ReactMarkdown from "react-markdown"
+import MarkdownView from "@/components/markdown_view"
 import Link from "next/link"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function CoursePlayerPage() {
   const { courseId } = useParams()
@@ -47,7 +48,7 @@ export default function CoursePlayerPage() {
     }
   }
 
-  if (loading) return <div className="p-10 text-center loading loading-spinner">Loading Content...</div>
+  if (loading) return <LoadingSpinner text="Loading Content.."/>
   if (!course) return <div>Course not found</div>
 
   return (
@@ -93,7 +94,7 @@ export default function CoursePlayerPage() {
               ></iframe>
             </div>
           ) : (
-            <ReactMarkdown>{activeModule.content}</ReactMarkdown>
+              <MarkdownView content={activeModule.content} />
           )}
         </div>
 

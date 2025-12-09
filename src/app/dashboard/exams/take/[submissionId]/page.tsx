@@ -4,16 +4,18 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
-import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
-import ReactMarkdown from "react-markdown"
+import MarkdownView from "@/components/markdown_view"
+import { toast } from "sonner"
+import type { ExamDetail } from "@/app/types/api"
+import LoadingSpinner from "@/components/loading_spinner"
 
 export default function TakeExamPage() {
   const { submissionId } = useParams()
   const { data: session } = useSession()
   const router = useRouter()
 
-  const [exam, setExam] = useState<any>(null)
+  const [exam, setExam] = useState<ExamDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -31,46 +33,23 @@ export default function TakeExamPage() {
   // --- STATE BARU: HASIL CODE ---
   const [resultCode, setResultCode] = useState<string | null>(null)
 
-  // Custom Renderer untuk Markdown (Gambar & PDF)
-  const renderers = {
-    a: ({ ...props }: any) => {
-      const url = props.href || "";
-      const isPdf = url.toLowerCase().endsWith(".pdf");
-      if (isPdf) {
-        return (
-          <span className="my-4 block border rounded-xl overflow-hidden bg-base-200 w-full">
-            <span className="p-2 bg-base-300 text-xs font-bold flex justify-between items-center px-4">
-              <span>📄 PDF Attachment</span>
-              <a href={url} target="_blank" rel="noopener noreferrer" className="link link-primary">Open in New Tab ↗</a>
-            </span>
-            <iframe src={url} className="w-full h-[500px]" title="PDF Viewer">
-              <span className="p-4 text-center block">Unable to display PDF. <a href={url} className="link">Download here</a></span>
-            </iframe>
-          </span>
-        )
-      }
-      return <a {...props} target="_blank" rel="noopener noreferrer" className="link link-info" />
-    },
-    img: ({ ...props }: any) => (
-      <Image {...props} width={800} height={400} className="max-w-full h-auto rounded-lg border my-2 shadow-sm" alt={props.alt || "Question Image"} />
-    )
-  }
 
   // 1. Fetch Exam Data
   useEffect(() => {
     const fetchExam = async () => {
       try {
-        // @ts-expect-error data error
-        const { data } = await api.api.exams.submission[submissionId].get()
+        const { data } = await api.api.exams.submission[submissionId as string].get()
 
         if (data && data.status === 'success') {
-          const sub = data.data
+          const sub = data.data as unknown as { exam: ExamDetail, answers: any[] }
 
           setExam({
+            id: sub.exam.id,
             title: sub.exam.title,
             module: sub.exam.module,
             passingScore: sub.exam.passingScore,
             isSelection: sub.exam.isSelection, // Pastikan field ini terambil
+            questionCount: sub.answers.length,
             questions: sub.answers.map((ans: any) => ({
               id: ans.question.id,
               text: ans.question.text,
@@ -139,9 +118,9 @@ export default function TakeExamPage() {
   // 4. Handle Submit
   const handleSubmit = async () => {
     // Validasi Khusus Seleksi
-    if (exam.isSelection) {
-      if (appData.reason.trim().length < 20) return alert("Please explain your reason for joining (min 20 chars).");
-      if (appData.expectation.trim().length < 20) return alert("Please explain your expectations (min 20 chars).");
+    if (exam?.isSelection) {
+      if (appData.reason.trim().length < 20) return toast.warning("Please explain your reason for joining (min 20 chars).");
+      if (appData.expectation.trim().length < 20) return toast.warning("Please explain your expectations (min 20 chars).");
     }
 
     if (!confirm("Are you sure you want to finish this exam?")) return;
@@ -169,20 +148,20 @@ export default function TakeExamPage() {
         const data = res.data.data as any;
 
         // JIKA SELEKSI & LULUS -> TAMPILKAN MODAL CODE
-        if (exam.isSelection && data.result === 'PASSED' && data.generatedCode) {
+        if (exam && exam.isSelection && data.result === 'PASSED' && data.generatedCode) {
           setResultCode(data.generatedCode)
           // Jangan redirect dulu!
         } else {
           // Ujian Biasa atau Gagal
-          alert(`Exam Finished: ${data.result}`)
+          toast.info(`Exam Finished: ${data.result}`)
           router.push('/dashboard/exams')
         }
       } else {
         const errorMsg = (res.data as any)?.message || "Unknown error";
-        alert("Submission failed: " + errorMsg)
+        toast.error("Submission failed: " + errorMsg)
       }
     } catch (err) {
-      alert(`Error submitting exam: ${err}`)
+      toast.error(`Error submitting exam: ${err}`)
     } finally {
       setSubmitting(false)
     }
@@ -256,7 +235,7 @@ ${appData.expectation}`;
                 className="btn btn-primary btn-soft"
                 onClick={() => {
                   navigator.clipboard.writeText(copyText);
-                  alert("Template copied to clipboard!");
+                  toast.success("Template copied to clipboard!");
                 }}
               >
                 Copy Template
@@ -271,7 +250,7 @@ ${appData.expectation}`;
     )
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><span className="loading loading-spinner loading-lg"></span></div>
+  if (loading) return <LoadingSpinner />
   if (!exam) return <div className="p-10 text-center text-error">Exam not found or failed to load.</div>
 
   return (
@@ -298,7 +277,7 @@ ${appData.expectation}`;
                   <iframe src={exam.module.content} className="w-full h-full" frameBorder="0" allowFullScreen></iframe>
                 </div>
               ) : (
-                <ReactMarkdown components={renderers}>{exam.module.content}</ReactMarkdown>
+                  <MarkdownView content={exam.module.content} />
               )}
             </div>
           </div>
@@ -315,7 +294,7 @@ ${appData.expectation}`;
               <h3 className="font-bold text-lg mb-4 flex gap-3">
                 <span className="badge badge-neutral h-6 w-6 rounded-full flex items-center justify-center mt-1">{index + 1}</span>
                 <div className="flex-1">
-                  <ReactMarkdown components={renderers}>{q.text}</ReactMarkdown>
+                  <MarkdownView content={q.text} />
                 </div>
                 <span className="text-xs font-normal opacity-50 whitespace-nowrap">({q.points} pts)</span>
               </h3>

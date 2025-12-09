@@ -6,6 +6,7 @@ import { api } from "@/lib/client"
 import { useRouter } from "next/navigation"
 import * as XLSX from "xlsx"
 import FileUploader from "@/components/file_uploader" // Pastikan komponen ini sudah dibuat
+import { toast } from "sonner"
 
 export default function CreateExamPage() {
   const router = useRouter()
@@ -93,7 +94,7 @@ export default function CreateExamPage() {
       });
 
       setQuestions([...questions, ...parsedQuestions]);
-      alert(`Successfully imported ${parsedQuestions.length} questions!`);
+      toast.success(`Successfully imported ${parsedQuestions.length} questions!`);
     };
     reader.readAsBinaryString(file);
   };
@@ -102,13 +103,13 @@ export default function CreateExamPage() {
   const handleAssetUpload = (url: string, type: 'image' | 'file') => {
     setLastUploaded({ url, type })
     navigator.clipboard.writeText(url)
-    alert("File uploaded! URL copied to clipboard.")
+    toast.success("File uploaded! URL copied to clipboard.")
   }
 
   // --- 4. SUBMIT FINAL ---
   const handleSubmit = async () => {
     if (!examDetails.title || questions.length === 0) {
-      alert("Please fill exam title and add at least one question.");
+      toast.warning("Please fill exam title and add at least one question.");
       return;
     }
 
@@ -120,15 +121,15 @@ export default function CreateExamPage() {
       });
 
       if (res.data?.status === 'success') {
-        alert("Exam Created Successfully!");
+        toast.success("Exam Created Successfully!");
         router.push("/dashboard/admin/exams");
       } else {
-        alert("Error: " + (res.data as any)?.message);
+        toast.error("Error: " + (res.data as any)?.message);
       }
     } catch (e) {
       console.error(e)
       
-      alert("Submission failed.");
+      toast.error("Submission failed.");
     } finally {
       setSubmitting(false);
     }
