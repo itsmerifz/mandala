@@ -85,7 +85,7 @@ export default function GradingPage() {
           <h1 className="text-2xl font-bold">Grading: {sub.user.name}</h1>
           <p className="opacity-60">{sub.exam.title}</p>
         </div>
-        <div className="badge badge-warning">PENDING REVIEW</div>
+        <div className="badge badge-warning badge-soft font-bold">PENDING REVIEW</div>
       </div>
 
       <div className="space-y-6">
@@ -97,18 +97,18 @@ export default function GradingPage() {
             <div key={q.id} className={`card border shadow-sm ${isCorrect ? 'bg-base-100 border-success/30' : 'bg-base-100 border-base-200'}`}>
               <div className="card-body">
                 <div className="flex justify-between">
-                  <h3 className="font-bold text-lg">Q{i + 1}: {q.text}</h3>
+                  <h3 className="font-bold text-lg max-w-lg">Q{i + 1}: {q.text}</h3>
                   <div className="flex gap-2">
                     <span className="badge badge-ghost">Max: {q.points} pts</span>
                     {/* Tampilkan Poin yang didapat */}
-                    <span className={`badge ${answer.pointsAwarded > 0 ? 'badge-primary' : 'badge-ghost'}`}>
+                    <span className={`badge badge-soft ${answer.pointsAwarded > 0 ? 'badge-primary' : 'badge-ghost'}`}>
                       Earned: {answer.pointsAwarded}
                     </span>
 
                     {q.type !== 'ESSAY' && (
                       isCorrect ?
-                        <span className="badge badge-success text-white">Correct</span> :
-                        <span className="badge badge-error text-white">Incorrect</span>
+                        <span className="badge badge-soft badge-success font-semibold">Correct</span> :
+                        <span className="badge badge-soft badge-error font-semibold">Incorrect</span>
                     )}
                   </div>
                 </div>
@@ -175,7 +175,7 @@ export default function GradingPage() {
 
       <div className="flex justify-end gap-4">
         <button className="btn btn-ghost" onClick={() => router.back()}>Cancel</button>
-        <button onClick={handleSubmit} disabled={submitting} className="btn btn-primary">
+        <button onClick={handleSubmit} disabled={submitting} className="btn btn-primary btn-soft">
           {submitting ? "Saving..." : "Finalize & Submit Results"}
         </button>
       </div>

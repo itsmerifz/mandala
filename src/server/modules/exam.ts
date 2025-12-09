@@ -125,9 +125,16 @@ export const examRoutes = new Elysia({ prefix: '/exams' })
         orderBy: { completedAt: 'desc' }
       });
       if (lastFail) {
-        const failTime = new Date(lastFail.completedAt!).getTime();
-        if ((Date.now() - failTime) / 60000 < 30) {
-          return status(429, { status: 'error', message: 'Cooldown active. Please wait.' });
+        const failTime = new Date(lastFail.completedAt!).getTime()
+        const cooldownDuration = 30 * 60 * 1000
+        const unlockTime = failTime + cooldownDuration
+        if (Date.now() < unlockTime) {
+          const timeString = new Date(unlockTime).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          })
+          return status(429, { status: 'error', message: `Cooldown active. Please wait until ${timeString}` });
         }
       }
 

@@ -4,7 +4,6 @@
 import { useState } from "react"
 import { api } from "@/lib/client"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
 import { User } from "lucide-react"
 
 export default function MentoringPage() {

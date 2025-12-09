@@ -74,83 +74,87 @@ export default function ExamListPage() {
         exams.length === 0 ? <div className="text-center py-10 opacity-50">No exams configured.</div> :
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {exams.map((exam) => (
-              <div key={exam.id} className={`card border transition-all relative overflow-hidden
+            {exams.map((exam) => {
+              const isCooldownActive = exam.cooldownRemaining > 0
+              const isPrerequisiteLocked = exam.isLocked && !isCooldownActive
+              return (
+                <div key={exam.id} className={`card border transition-all relative overflow-hidden
                         ${exam.isLocked
-                  ? 'bg-base-200 border-base-300 opacity-80'
-                  : 'bg-base-100 shadow-sm border-base-200 hover:shadow-md'
-                }
+                    ? 'bg-base-200 border-base-300 opacity-80'
+                    : 'bg-base-100 shadow-sm border-base-200 hover:shadow-md'
+                  }
                     `}>
-                <div className="card-body">
-                  {/* Header Badge */}
-                  <div className="flex justify-between items-start">
-                    {exam.isLocked ? (
-                      <div className="badge badge-ghost gap-1">LOCKED</div>
-                    ) : exam.isSelection ? (
-                      <div className="badge badge-warning text-xs font-bold">SELECTION</div>
-                    ) : (
-                      <div className="badge badge-success badge-outline text-xs">AVAILABLE</div>
-                    )}
+                  <div className="card-body">
+                    {/* Header Badge */}
+                    <div className="flex justify-between items-start">
+                      {/* Prioritaskan Status Cooldown */}
+                      {isCooldownActive ? (
+                        <div className="badge badge-error gap-1 badge-soft font-bold">COOLDOWN</div>
+                      ) : isPrerequisiteLocked ? (
+                        <div className="badge badge-warning gap-1 badge-soft font-bold">LOCKED</div>
+                      ) : exam.isSelection ? (
+                        <div className="badge badge-warning text-xs font-bold badge-soft">SELECTION</div>
+                      ) : (
+                        <div className="badge badge-success text-xs badge-soft font-bold">AVAILABLE</div>
+                      )}
 
-                    {/* Score Badge */}
-                    {exam.lastAttempt && (
-                      <div className={`badge ${exam.lastAttempt.status === 'PASSED' ? 'badge-success text-white' : 'badge-error text-white'}`}>
-                        {exam.lastAttempt.status} ({exam.lastAttempt.score}%)
+                      {/* Score Badge */}
+                      {exam.lastAttempt && (
+                        <div className={`badge font-bold badge-soft ${exam.lastAttempt.status === 'PASSED' ? 'badge-success' : 'badge-error'}`}>
+                          {exam.lastAttempt.status} ({exam.lastAttempt.score}%)
+                        </div>
+                      )}
+                    </div>
+
+                    <h2 className="card-title mt-2">{exam.title}</h2>
+                    <p className="text-sm text-base-content/60">
+                      {exam.questionCount} Questions &bull; Pass: {exam.passingScore}%
+                    </p>
+
+                    {/* --- INDIKATOR COOLDOWN (VISUAL) --- */}
+                    {exam.cooldownRemaining > 0 && (
+                      <div className="mt-4 p-3 bg-error/10 border border-error/20 rounded-lg flex items-start gap-3">
+                        <Timer className="w-5 h-5 text-error shrink-0 mt-0.5" />
+                        <div>
+                          <div className="font-bold text-xs text-error">COOLDOWN ACTIVE</div>
+                          <p className="text-[10px] opacity-70">
+                            You must wait {exam.cooldownRemaining} minutes before retaking this selection exam.
+                          </p>
+                        </div>
                       </div>
                     )}
-                  </div>
 
-                  <h2 className="card-title mt-2">{exam.title}</h2>
-                  <p className="text-sm text-base-content/60">
-                    {exam.questionCount} Questions &bull; Pass: {exam.passingScore}%
-                  </p>
-
-                  {/* --- INDIKATOR COOLDOWN (VISUAL) --- */}
-                  {exam.cooldownRemaining > 0 && (
-                    <div className="mt-4 p-3 bg-error/10 border border-error/20 rounded-lg flex items-start gap-3">
-                      <Timer className="w-5 h-5 text-error shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-bold text-xs text-error">COOLDOWN ACTIVE</div>
-                        <p className="text-[10px] opacity-70">
-                          You must wait {exam.cooldownRemaining} minutes before retaking this selection exam.
-                        </p>
+                    {/* Info Syarat jika Locked (Bukan Cooldown) */}
+                    {exam.isLocked && exam.cooldownRemaining === 0 && (
+                      <div className="alert alert-warning text-xs mt-4 py-2 rounded-md">
+                        <span>Complete <b>{exam.prerequisiteTitle}</b> first.</span>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Info Syarat jika Locked (Bukan Cooldown) */}
-                  {exam.isLocked && exam.cooldownRemaining === 0 && (
-                    <div className="alert alert-warning text-xs mt-4 py-2 rounded-md">
-                      <span>Complete <b>{exam.prerequisiteTitle}</b> first.</span>
-                    </div>
-                  )}
-
-                  <div className="card-actions justify-end mt-4">
-                    {exam.isLocked ? (
-                      exam.cooldownRemaining > 0 ? (
-                        // Tombol Mati saat Cooldown
+                    <div className="card-actions justify-end mt-4">
+                      {isCooldownActive ? (
                         <button className="btn btn-sm btn-disabled">
                           Wait {exam.cooldownRemaining}m
                         </button>
-                      ) : (
+                      ) : isPrerequisiteLocked ? (
                         <Link href="/dashboard/lms" className="btn btn-sm btn-ghost">
                           Go to Course
                         </Link>
-                      )
-                    ) : exam.lastAttempt?.status === 'PASSED' && !exam.isSelection ? (
-                      <button className="btn btn-sm btn-success btn-disabled text-white">Passed</button>
-                    ) : (
-                      <button
-                        onClick={() => handleStartExam(exam.id)}
-                        className="btn btn-sm btn-primary"
-                      >
-                        {exam.lastAttempt ? "Retake Exam" : "Start Exam"}
-                      </button>
-                    )}
+                      ) : exam.lastAttempt?.status === 'PASSED' && !exam.isSelection ? (
+                        <button className="btn btn-sm btn-success btn-disabled btn-soft">Passed</button>
+                      ) : (
+                        <button
+                          onClick={() => handleStartExam(exam.id)}
+                          className="btn btn-sm btn-primary btn-soft"
+                        >
+                          {exam.lastAttempt ? "Retake Exam" : "Start Exam"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
       }
 
@@ -166,7 +170,7 @@ export default function ExamListPage() {
               <p className="text-sm py-2">{cooldownModal.msg}</p>
               <div className="card-actions">
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary btn-sm btn-soft"
                   onClick={() => setCooldownModal({ show: false, msg: "" })}
                 >
                   Understood

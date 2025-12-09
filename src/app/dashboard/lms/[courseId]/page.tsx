@@ -109,11 +109,11 @@ export default function CoursePlayerPage() {
 
           {/* Jika modul ini punya Exam, tampilkan tombol ke Exam */}
           {activeModule.exam ? (
-            <Link href={`/dashboard/exams/${activeModule.exam.id}`} className="btn btn-warning">
+            <Link href={`/dashboard/exams/${activeModule.exam.id}`} className="btn btn-warning btn-soft">
               Take Exam for this Module
             </Link>
           ) : (
-            <button className="btn btn-primary" onClick={handleNext}>
+            <button className="btn btn-primary btn-soft" onClick={handleNext}>
               {activeModuleIndex === course.modules.length - 1 ? "Finish Course 🎉" : "Next Module →"}
             </button>
           )}

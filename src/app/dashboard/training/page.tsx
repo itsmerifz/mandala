@@ -74,13 +74,13 @@ export default function TrainingPage() {
                   <div className={`timeline-${index % 2 === 0 ? 'start' : 'end'} md:text-end mb-10 w-full`}>
                     <time className="font-mono italic text-xs opacity-50">{formatDate(sess.startTime)}</time>
                     <div className="text-lg font-black mt-1">{sess.position}</div>
-                    <div className="text-sm font-semibold opacity-70 mb-2">
+                    <div className="text-sm font-semibold opacity-70 mb-2 badge badge-soft badge-secondary animate-pulse">
                       Mentor: {sess.mentor.name}
                     </div>
 
                     <div className="p-4 bg-base-200 rounded-lg text-left shadow-inner">
                       <p className="italic text-sm">&quot;{sess.summary}&quot;</p>
-                      <div className={`badge ${getRatingBadge(sess.rating)} badge-sm mt-3 text-white`}>
+                      <div className={`badge ${getRatingBadge(sess.rating)} badge-sm mt-3 badge-soft font-semibold`}>
                         {sess.rating}
                       </div>
                     </div>

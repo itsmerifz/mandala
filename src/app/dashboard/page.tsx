@@ -118,7 +118,7 @@ export default function Page() {
 
       {/* Solo Endorsement */}
       {!loading && activeSolo && (
-        <div role="alert" className="alert alert-info bg-info/10 text-info-content border-info/20 shadow-sm">
+        <div role="alert" className="alert alert-info alert-soft border-info/20 shadow-sm">
           <CircleCheckBig className="h-6 w-6 text-info" />
           <div className="flex flex-col w-full">
             <div className="flex justify-between items-center w-full">
@@ -166,7 +166,7 @@ export default function Page() {
               </div>
               <div>
                 <div className="opacity-50">Status</div>
-                <div className={`font-semibold ${user.rosterStatus === 'ACTIVE' ? 'text-success' : 'text-warning'}`}>
+                <div className={`font-semibold badge badge-soft ${user.rosterStatus === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
                   {user.rosterStatus || "VISITOR"}
                 </div>
               </div>
@@ -199,7 +199,7 @@ export default function Page() {
                   </p>
                 </div>
                 <div className="card-actions justify-end mt-auto">
-                  <button onClick={() => router.push('/dashboard/training')} className="btn btn-sm btn-ghost">
+                  <button onClick={() => router.push('/dashboard/training')} className="btn btn-sm btn-secondary btn-soft">
                     View Log
                   </button>
                 </div>
@@ -221,7 +221,7 @@ export default function Page() {
               <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin opacity-30" /></div>
             ) : pendingExam ? (
               <>
-                <div className="alert alert-warning text-sm bg-warning/10 border-warning/20 text-warning-content mt-2">
+                <div className="alert alert-warning text-sm alert-soft border-warning/20 mt-2">
                   <TriangleAlert className="w-5 h-5" />
                   <span><b>{pendingExam.title}</b> is available to take.</span>
                 </div>
@@ -229,7 +229,7 @@ export default function Page() {
                 <div className="card-actions justify-end mt-4">
                   <button
                     onClick={() => router.push(`/dashboard/exams`)}
-                    className="btn btn-sm btn-primary w-full"
+                    className="btn btn-sm btn-primary w-full btn-soft"
                   >
                     Start Exam
                   </button>

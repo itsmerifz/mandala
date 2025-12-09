@@ -12,7 +12,7 @@ export default function AdminExamList() {
   const fetchExams = async () => {
     // Panggil dengan mode admin
     api.api.exams.get({ $query: { mode: 'admin' } }).then(({ data }) => {
-      if (data?.status === 'success') setExams(data.data)
+      if (data?.status === 'success') setExams(data.data ?? [])
       setLoading(false)
     })
   }

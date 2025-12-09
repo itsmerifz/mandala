@@ -75,7 +75,7 @@ export const trainingRoutes = new Elysia({ prefix: '/training' })
         training = await prisma.training.create({
           data: {
             studentId: student.id,
-            title: `Training - ${position.split('_')[1] || 'General'}`, // Auto title: Training - TWR
+            title: `Training - ${position.split('_')[1].toUpperCase() || 'General'}`, // Auto title: Training - TWR
             status: 'IN_PROGRESS'
           }
         });
